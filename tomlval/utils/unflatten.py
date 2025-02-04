@@ -1,4 +1,6 @@
-""" A module to unflatten a single level dictionary into a nested dictionary. """
+""" A module to unflatten a flattened dictionary into a nested dictionary. """
+
+# pylint: disable=R0912
 
 
 def unflatten(dictionary: dict) -> dict:

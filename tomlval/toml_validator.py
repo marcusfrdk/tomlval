@@ -1,6 +1,6 @@
 """ Validator class for validating TOML data. """
 
-# pylint: disable=C0103
+# pylint: disable=C0103,R1702
 
 import inspect
 import re
