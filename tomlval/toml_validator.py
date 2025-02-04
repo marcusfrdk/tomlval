@@ -2,18 +2,20 @@
 
 import inspect
 import re
-from typing import Any, Callable
+from typing import Any, Callable, List, Tuple
 
-from tomlval.errors import TOMLHandlerError, TOMLSchemaError
+from tomlval.errors import TOMLHandlerError
 from tomlval.types import Handler, ValidatedSchema
 from tomlval.utils import flatten
 from tomlval.utils.regex import key_pattern
+
+from .toml_schema import TOMLSchema
 
 
 class TOMLValidator:
     """Class to validate TOML data."""
 
-    def __init__(self, data: dict, schema: dict = None):
+    def __init__(self, data: dict, schema: TOMLSchema = None):
         """
         Initialize the TOML validator.
 
@@ -23,8 +25,8 @@ class TOMLValidator:
         Returns:
             None
         Raises:
-            TypeError - If data is not a dictionary.
-            tomlval.errors.TOMLSchemaError - If the schema is invalid.
+            TypeError - If data is not a dictionary or
+            schema is not a TOMLSchema.
         """
 
         # Data
@@ -33,10 +35,10 @@ class TOMLValidator:
 
         # Schema
         if schema is not None:
-            if not self._validate_schema(schema):
-                raise TOMLSchemaError()
+            if not isinstance(schema, TOMLSchema):
+                raise TypeError("Schema must be a TOMLSchema.")
 
-        self._data = data
+        self._data = flatten(data)
         self._schema = schema
         self._handlers = {}
 
@@ -87,26 +89,39 @@ class TOMLValidator:
 
         return list(inspect.signature(fn).parameters.keys())
 
-    def _validate_schema(self, schema: dict = None) -> bool:
-        """Method to validate a schema."""
-        schema = schema or self._schema
+    def _get_missing_keys(self) -> list[str]:
+        """Get a list of keys missing in the data."""
+        return [k for k in self._schema if k not in self._data]
 
-        if not isinstance(schema, dict):
-            return False
+    def _get_invalid_types(self) -> List[Tuple[str, Tuple[type, Any]]]:
+        """Get a list of keys with invalid types."""
+        invalid_types = []
 
-        def _check_schema(schema: dict) -> bool:
-            for k, v in schema.items():
-                if isinstance(v, dict):
-                    return _check_schema(v)
-                if not isinstance(v, type):
-                    return False
-            return True
+        for key, value in self._data.items():
+            if key in self._schema:
+                # List of types
+                if isinstance(self._schema[key], list):
+                    invalid_list_types = set()
 
-        return _check_schema(schema)
+                    for t in value:
+                        if type(t) not in self._schema[key]:
+                            invalid_list_types.add(type(t))
 
-    def _get_missing_keys(self) -> list[str]: ...
+                    if invalid_list_types:
+                        invalid_types.append(
+                            (key, (self._schema[key], list(invalid_list_types)))
+                        )
 
-    def _get_invalid_types(self) -> list[tuple[str, Any]]: ...
+                # Single type
+                elif not isinstance(value, self._schema[key]):
+                    types = (
+                        self._schema[key]
+                        if isinstance(self._schema[key], type)
+                        else type(value)
+                    )
+                    invalid_types.append((key, (self._schema[key], types)))
+
+        return invalid_types
 
     def add_handler(self, key: str, handler: Handler):
         """
@@ -194,9 +209,16 @@ if __name__ == "__main__":
     with data_path.open("rb") as file:
         toml_data = tomllib.load(file)
 
-    validator = TOMLValidator(toml_data, schema={"name": str, "age": "nice"})
+    # schema = TOMLSchema({"string_basic": (int, float)})
+    _schema = TOMLSchema({"int_positive": [str, list]})
 
-    validator.add_handler("string*c", str)
+    validator = TOMLValidator(toml_data, _schema)
+
+    # print(validator._get_missing_keys())
+    print(validator._get_invalid_types())
+
+    # validator.add_handler("string*c", str)
 
     # for k, v in validator.validate().items():
+    #     print(f"{k}: {v} ({type(v)})")
     #     print(f"{k}: {v} ({type(v)})")
