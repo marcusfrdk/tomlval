@@ -71,7 +71,7 @@ When a schema is defined, the validator will also check if values are missing an
 
 ### Validator
 
-The validator is the core of the package. It is used to validate a TOML file. A schema is optionally passed to the validator, and handlers are added using the `add_handler` method. Once you feel ready, you can call the `validate` method to get a dictionary of errors.
+The validator is the core of the package. It is used to validate a TOML file. A schema is optionally passed to the validator, and handlers are added using the `add_handler` method. Once you feel ready, you can call the `validate` method with the data you want to validate as an argument to get a dictionary of errors.
 
 Currently, there are two type of error structures, for type errors and all other errors.
 
@@ -133,7 +133,7 @@ structure = {
 schema = TOMLSchema(structure) # If the struture is invalid, a TOMLSchemaError is raised
 
 # Define validator
-validator = TOMLValidator(data, schema)
+validator = TOMLValidator(schema)
 
 # Add handlers
 validator.add_handler("*_name", lambda key: None if key in ["first_name", "last_name"] else "invalid-key")
@@ -141,7 +141,7 @@ validator.add_handler("age", lambda value: None if 18 < value < 100 else "invali
 validator.add_handler("*", lambda: "invalid-key")
 
 # Validate the data
-errors = validator.validate()
+errors = validator.validate(data)
 ```
 
 ## Future Plans

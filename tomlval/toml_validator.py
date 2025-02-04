@@ -19,34 +19,27 @@ TypeList = Union[type, list[type]]
 class TOMLValidator:
     """Class to validate TOML data."""
 
-    def __init__(self, data: dict, schema: TOMLSchema = None):
+    def __init__(self, schema: TOMLSchema = None):
         """
         Initialize the TOML validator.
 
         Args:
-            data: dict - The TOML data to validate.
-            schema: dict - The TOML schema to validate against.
+            schema: TOMLSchema - The TOML schema to validate against.
         Returns:
             None
         Raises:
-            TypeError - If data is not a dictionary or
-            schema is not a TOMLSchema.
+            TypeError - If the schema is not a TOMLSchema.
         """
-
-        # Data
-        if not isinstance(data, dict):
-            raise TypeError("Data must be a dictionary.")
 
         # Schema
         if schema is not None:
             if not isinstance(schema, TOMLSchema):
                 raise TypeError("Schema must be a TOMLSchema.")
 
-        self._data = flatten(data)
         self._schema = schema
         self._handlers = {}
 
-    def _map_handlers(self) -> dict[str, Handler]:
+    def _map_handlers(self, data: dict) -> dict[str, Handler]:
         """A method to map each key to a handler."""
 
         def _match_key(key: str) -> Handler:
@@ -75,7 +68,7 @@ class TOMLValidator:
 
             return matched_handler
 
-        return {k: _match_key(k) for k in flatten(self._data)}
+        return {k: _match_key(k) for k in data}
 
     def _inspect_function(self, fn: Callable) -> List[str]:
         """
@@ -93,20 +86,17 @@ class TOMLValidator:
 
         return list(inspect.signature(fn).parameters.keys())
 
-    def _get_missing_keys(self) -> list[str]:
+    def _get_missing_keys(self, data: dict) -> list[str]:
         """Get a list of keys missing in the data."""
-        # return [k for k in self._schema if k not in self._data]
         if not isinstance(self._schema, TOMLSchema):
             return []
 
         return [
-            k
-            for k in self._schema
-            if k not in self._data and not k.endswith("?")
+            k for k in self._schema if k not in data and not k.endswith("?")
         ]
 
     def _get_invalid_types(
-        self,
+        self, data: dict
     ) -> dict[str, Tuple[str, Tuple[Any, TypeList, TypeList]]]:
         """Get a list of keys with invalid types."""
         invalid_types = {}
@@ -115,19 +105,19 @@ class TOMLValidator:
             return invalid_types
 
         for k, h in self._schema.items():
-            if k not in self._data:
+            if k not in data:
                 continue
 
             # Built in type
             if isinstance(h, type):
-                value = self._data[k]
+                value = data[k]
                 if not isinstance(value, h):
                     invalid_types[k] = ("invalid-type", (value, h, type(value)))
                 continue
 
             # List of build in types
             if isinstance(h, (list, tuple)):
-                _value = self._data[k]
+                _value = data[k]
                 _type = type(_value)
 
                 if not any(isinstance(_value, t) for t in h):
@@ -137,24 +127,24 @@ class TOMLValidator:
 
         return invalid_types
 
-    def _get_handler_results(self) -> dict[str, Any]:
+    def _get_handler_results(self, data: dict) -> dict[str, Any]:
         """Runs the handlers and gets the results."""
         results = {}
 
-        for k, h in self._map_handlers().items():
+        for k, h in self._map_handlers(data).items():
             if h is None:
                 continue
 
             # Built in type
             if isinstance(h, type):
-                value = self._data[k]
+                value = data[k]
                 if not isinstance(value, h):
                     results[k] = ("invalid-type", (value, h, type(value)))
                 continue
 
             # List of build in types
             if isinstance(h, (list, tuple)):
-                _value = self._data[k]
+                _value = data[k]
                 _type = type(_value)
 
                 if not any(isinstance(_value, t) for t in h):
@@ -172,9 +162,9 @@ class TOMLValidator:
                 if fn_args[0] == "key":
                     results[k] = h(k)
                 elif fn_args[0] == "value":
-                    results[k] = h(self._data[k])
+                    results[k] = h(data[k])
             elif len(fn_args) == 2:
-                results[k] = h(k, self._data[k])
+                results[k] = h(k, data[k])
 
         return results
 
@@ -258,11 +248,25 @@ class TOMLValidator:
         else:
             raise TOMLHandlerError("Handler must accept 0, 1, or 2 arguments.")
 
-    def validate(self) -> ValidatedSchema:
-        """Validates the TOML data."""
-        handler_results = self._get_handler_results()
-        missing_keys = self._get_missing_keys()
-        invalid_types = self._get_invalid_types()
+    def validate(self, data: dict) -> ValidatedSchema:
+        """
+        Validates the TOML data.
+
+        Args:
+            data: dict - The TOML data to validate.
+        Returns:
+            dict - The errors in the data.
+        Raises:
+            TypeError - If data is not a dictionary.
+        """
+        if not isinstance(data, dict):
+            raise TypeError("Data must be a dictionary.")
+
+        data = flatten(data)
+
+        handler_results = self._get_handler_results(data)
+        missing_keys = self._get_missing_keys(data)
+        invalid_types = self._get_invalid_types(data)
 
         errors = {
             **{k: ("missing", None) for k in missing_keys},
@@ -278,8 +282,8 @@ class TOMLValidator:
 
 
 if __name__ == "__main__":
-    val = TOMLValidator({"a_1_b": "1"})
+    val = TOMLValidator()
     # val.add_handler("a_*_b", int)
     val.add_handler("a_*_b", (int, float))
 
-    print(val.validate())
+    print(val.validate({"a_1_b": "1"}))
