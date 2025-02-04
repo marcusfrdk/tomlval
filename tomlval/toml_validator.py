@@ -107,46 +107,33 @@ class TOMLValidator:
 
     def _get_invalid_types(
         self,
-    ) -> List[Tuple[str, Tuple[Any, TypeList, TypeList]]]:
+    ) -> dict[str, Tuple[str, Tuple[Any, TypeList, TypeList]]]:
         """Get a list of keys with invalid types."""
-        invalid_types = []
+        invalid_types = {}
 
         if not isinstance(self._schema, TOMLSchema):
             return invalid_types
 
-        for key, value in self._data.items():
-            if key in self._schema:
-                # List of types
-                if isinstance(self._schema[key], list):
+        for k, h in self._schema.items():
+            if k not in self._data:
+                continue
 
-                    # Check if any of the types are valid
-                    if isinstance(value, list):
-                        invalid_list_types = set()
-                        for t in value:
-                            if type(t) not in self._schema[key]:
-                                invalid_list_types.add(type(t))
-                        invalid_list_types = list(invalid_list_types)
-                    else:
-                        invalid_list_types = type(value)
+            # Built in type
+            if isinstance(h, type):
+                value = self._data[k]
+                if not isinstance(value, h):
+                    invalid_types[k] = ("invalid-type", (value, h, type(value)))
+                continue
 
-                    if invalid_list_types:
-                        invalid_types.append(
-                            (
-                                key,
-                                (value, self._schema[key], invalid_list_types),
-                            )
-                        )
+            # List of build in types
+            if isinstance(h, (list, tuple)):
+                _value = self._data[k]
+                _type = type(_value)
 
-                # Single type
-                elif not isinstance(value, self._schema[key]):
-                    types = (
-                        self._schema[key]
-                        if isinstance(self._schema[key], type)
-                        else type(value)
-                    )
-                    invalid_types.append(
-                        (key, (value, self._schema[key], types))
-                    )
+                if not any(isinstance(_value, t) for t in h):
+                    invalid_types[k] = ("invalid-type", (_value, h, _type))
+
+                continue
 
         return invalid_types
 
@@ -279,7 +266,7 @@ class TOMLValidator:
 
         errors = {
             **{k: ("missing", None) for k in missing_keys},
-            **{k: ("invalid-type", v) for k, v in invalid_types},
+            **invalid_types,
             **{
                 k: ("handler", v)
                 for k, v in handler_results.items()
