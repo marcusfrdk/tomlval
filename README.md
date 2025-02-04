@@ -101,11 +101,19 @@ import tomllib
 import datetime
 from tomlval import TOMLValidator, TOMLSchema
 
-# Load data
+# Load data from file
 path = pathlib.Path("data.toml")
 
 with path.open("rb") as file:
     data = tomllib.load(file)
+
+# Use a dictionary
+# data = {
+#     "first_name": "John",
+#     "last_name": "Doe",
+#     "age": 25,
+#     ...
+# }
 
 # Define schema (optional)
 structure = {
