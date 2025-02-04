@@ -4,7 +4,7 @@ import pathlib
 
 import pytest
 
-from toml_parser.utils.regex import key_pattern
+from tomlval.utils.regex import key_pattern
 
 # Paths
 data_path = pathlib.Path(__file__).parent / "data"

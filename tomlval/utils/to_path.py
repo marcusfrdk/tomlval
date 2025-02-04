@@ -3,7 +3,7 @@
 import os
 import pathlib
 
-from toml_parser.types import PathOrStr
+from tomlval.types import PathOrStr
 
 
 def to_path(path_or_str: PathOrStr) -> pathlib.Path:

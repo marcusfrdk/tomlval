@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import pytest
 
-from toml_parser.utils.to_path import to_path
+from tomlval.utils.to_path import to_path
 
 
 def test_to_path_with_pathlib_path():

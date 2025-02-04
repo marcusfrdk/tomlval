@@ -2,7 +2,7 @@
 
 import tomllib
 
-from toml_parser.types import PathOrStr
+from tomlval.types import PathOrStr
 
 from .to_path import to_path
 

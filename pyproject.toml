@@ -1,5 +1,5 @@
 [project]
-name = "toml_parser"
+name = "tomlval"
 version = "1.0.0"
 description = "A simple and easy to use TOML parser and validator for Python."
 authors = [
@@ -14,7 +14,7 @@ license = { file = "LICENSE" }
 requires-python = ">=3.11"
 readme = "README.md"
 dependencies = []
-keywords = ["toml", "parser", "validator", "python"]
+keywords = ["toml", "validator", "validation", "parser", "python"]
 
 [project.optional-dependencies]
 build = ["build", "twine"]
@@ -31,7 +31,7 @@ requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["toml_parser"]
+packages = ["tomlval"]
 
 [tool.black]
 line-length = 80

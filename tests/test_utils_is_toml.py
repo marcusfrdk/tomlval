@@ -3,7 +3,7 @@
 import tomllib
 from io import BytesIO
 
-from toml_parser.utils.is_toml import is_toml
+from tomlval.utils.is_toml import is_toml
 
 
 class DummyPath:

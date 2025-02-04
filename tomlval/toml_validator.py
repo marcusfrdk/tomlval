@@ -4,8 +4,9 @@ import inspect
 import re
 from typing import Any, Callable
 
-from toml_parser.errors import TOMLHandlerError
-from toml_parser.types import Handler
+from tomlval.errors import TOMLHandlerError
+from tomlval.types import Handler
+from tomlval.utils.regex import key_pattern
 
 
 class TOMLValidator:
@@ -127,6 +128,7 @@ class TOMLValidator:
         Returns:
             None
         Raises:
+            ValueError - If the key has an invalid format.
             TypeError - If key is not a string.
             toml_parser.errors.TOMLHandlerError - If the handler is invalid.
         """
@@ -139,6 +141,14 @@ class TOMLValidator:
         # Not a function
         if not isinstance(handler, Callable):
             raise TOMLHandlerError("Handler must be a callable.")
+
+        # Key type
+        if not isinstance(key, str):
+            raise TypeError("Key must be a string.")
+
+        # Invalid key
+        if not key_pattern.match(key):
+            raise ValueError(f"Invalid key '{key}'.")
 
         # Check if arguments are valid
         args = self._inspect_function(handler)
