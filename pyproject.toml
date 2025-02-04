@@ -1,6 +1,6 @@
 [project]
 name = "tomlval"
-version = "1.0.1"
+version = "1.0.2"
 description = "A simple and easy to use TOML validator for Python."
 authors = [
     { name = "Marcus Fredriksson", email = "marcus@marcusfredriksson.com" },
@@ -31,7 +31,7 @@ requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["tomlval"]
+packages = ["tomlval", "tomlval.errors", "tomlval.types", "tomlval.utils"]
 
 [tool.black]
 line-length = 80
@@ -40,3 +40,8 @@ target-version = ['py311']
 [tool.isort]
 profile = "black"
 line_length = 80
+
+[project.urls]
+Homepage = "https://github.com/marcusfrdk/tomlval"
+Repository = "https://github.com/marcusfrdk/tomlval"
+Issues = "https://github.com/marcusfrdk/tomlval/issues"
