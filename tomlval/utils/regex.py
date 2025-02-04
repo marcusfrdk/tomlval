@@ -2,4 +2,4 @@
 
 import re
 
-key_pattern = re.compile(r"^(?:\*|\w+)(?:\.(?:\*|\w+))*\??$")
+key_pattern = re.compile(r"^(?:\*|\w+)(?:\.(?:\*|\w+))*\*?\??$")

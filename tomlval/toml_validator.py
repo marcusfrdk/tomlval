@@ -1,8 +1,10 @@
 """ Validator class for validating TOML data. """
 
+# pylint: disable=C0103
+
 import inspect
 import re
-from typing import Any, Callable, List, Tuple
+from typing import Any, Callable, List, Tuple, Union
 
 from tomlval.errors import TOMLHandlerError
 from tomlval.types import Handler, ValidatedSchema
@@ -10,6 +12,8 @@ from tomlval.utils import flatten
 from tomlval.utils.regex import key_pattern
 
 from .toml_schema import TOMLSchema
+
+TypeList = Union[type, list[type]]
 
 
 class TOMLValidator:
@@ -73,7 +77,7 @@ class TOMLValidator:
 
         return {k: _match_key(k) for k in flatten(self._data)}
 
-    def _inspect_function(self, fn: Callable) -> list[str]:
+    def _inspect_function(self, fn: Callable) -> List[str]:
         """
         Gets the parameters of a function.
 
@@ -98,7 +102,9 @@ class TOMLValidator:
             if k not in self._data and not k.endswith("?")
         ]
 
-    def _get_invalid_types(self) -> List[Tuple[str, Tuple[type, Any]]]:
+    def _get_invalid_types(
+        self,
+    ) -> List[Tuple[str, Tuple[Any, TypeList, TypeList]]]:
         """Get a list of keys with invalid types."""
         invalid_types = []
 
@@ -119,7 +125,10 @@ class TOMLValidator:
 
                     if invalid_list_types:
                         invalid_types.append(
-                            (key, (self._schema[key], invalid_list_types))
+                            (
+                                key,
+                                (value, self._schema[key], invalid_list_types),
+                            )
                         )
 
                 # Single type
@@ -129,12 +138,34 @@ class TOMLValidator:
                         if isinstance(self._schema[key], type)
                         else type(value)
                     )
-                    invalid_types.append((key, (self._schema[key], types)))
+                    invalid_types.append(
+                        (key, (value, self._schema[key], types))
+                    )
 
         return invalid_types
 
     def _get_handler_results(self) -> dict[str, Any]:
         """Runs the handlers and gets the results."""
+        results = {}
+
+        for k, h in self._map_handlers().items():
+            if h is None:
+                continue
+
+            fn_args = self._inspect_function(h)
+
+            # No arguments
+            if len(fn_args) == 0:
+                results[k] = h()
+            elif len(fn_args) == 1:
+                if fn_args[0] == "key":
+                    results[k] = h(k)
+                elif fn_args[0] == "value":
+                    results[k] = h(self._data[k])
+            elif len(fn_args) == 2:
+                results[k] = h(k, self._data[k])
+
+        return results
 
     def add_handler(self, key: str, handler: Handler):
         """
@@ -178,28 +209,28 @@ class TOMLValidator:
             raise ValueError(f"Invalid key '{key}'.")
 
         # Check if arguments are valid
-        args = self._inspect_function(handler)
+        fn_args = self._inspect_function(handler)
 
         ## No arguments
-        if len(args) == 0:
+        if len(fn_args) == 0:
             self._handlers[key] = handler
 
         ## One argument
-        elif len(args) == 1:
-            if args[0] not in ["key", "value"]:
+        elif len(fn_args) == 1:
+            if fn_args[0] not in ["key", "value"]:
                 raise TOMLHandlerError(
-                    f"Handler must accept 'key' or 'value', got '{args[0]}'"
+                    f"Handler must accept 'key' or 'value', got '{fn_args[0]}'"
                 )
             self._handlers[key] = handler
 
         ## Two arguments
-        elif len(args) == 2:
-            if args != ["key", "value"]:
+        elif len(fn_args) == 2:
+            if fn_args != ["key", "value"]:
                 raise TOMLHandlerError(
                     " ".join(
                         [
                             "Handler must accept 'key' and 'value', got",
-                            f"'{args[0]}' and '{args[1]}'",
+                            f"'{fn_args[0]}' and '{fn_args[1]}'",
                         ]
                     )
                 )
@@ -210,28 +241,19 @@ class TOMLValidator:
             raise TOMLHandlerError("Handler must accept 0, 1, or 2 arguments.")
 
     def validate(self) -> ValidatedSchema:
-        """"""
+        """Validates the TOML data."""
+        handler_results = self._get_handler_results()
+        missing_keys = self._get_missing_keys()
+        invalid_types = self._get_invalid_types()
 
+        errors = {
+            **{k: ("missing", None) for k in missing_keys},
+            **{k: ("invalid-type", v) for k, v in invalid_types},
+            **{
+                k: ("handler", v)
+                for k, v in handler_results.items()
+                if v is not None
+            },
+        }
 
-if __name__ == "__main__":
-    import pathlib
-    import tomllib
-
-    data_path = pathlib.Path("examples/full_spec.toml")
-
-    with data_path.open("rb") as file:
-        toml_data = tomllib.load(file)
-
-    # schema = TOMLSchema({"string_basic": (int, float)})
-    _schema = TOMLSchema({"int_non_existing": int})
-
-    validator = TOMLValidator(toml_data, _schema)
-
-    # print(validator._get_missing_keys())
-    print(validator._get_missing_keys())
-
-    # validator.add_handler("string*c", str)
-
-    # for k, v in validator.validate().items():
-    #     print(f"{k}: {v} ({type(v)})")
-    #     print(f"{k}: {v} ({type(v)})")
+        return errors

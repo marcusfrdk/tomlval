@@ -1,7 +1,10 @@
 user.name
+user.name?
 user.*.profile
 app.database.config.*
 x.y.z
 global.*
+global*
+global*?
 data.*.value
 *.user.name
