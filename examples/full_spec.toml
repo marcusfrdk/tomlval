@@ -1,0 +1,112 @@
+# This file includes all the data types
+# found in the TOML specification
+# https://toml.io/en/v1.0.0
+
+# Strings
+string_basic = "Hello, World"
+string_multiline = """This is a 
+multiline string"""
+string_literal = 'Hello, World'
+string_multiline_literal = '''This is a
+multiline literal string'''
+
+# Integers
+int_positive = 42
+int_negative = -42
+int_hex = 0x2A
+int_oct = 0o52
+int_bin = 0b101010
+
+# Floats
+float_simple = 3.14
+float_exponent = 1e6
+float_negative_exponent = 6.626e-34
+float_with_sign = -3.14
+float_with_underscores = 1_000.000_001
+
+# Boolean
+bool_true = true
+bool_false = false
+
+# Offset Date-Time
+datetime_utc = 1979-05-27T07:32:00Z
+datetime_offset = 1979-05-27T07:32:00-08:00
+datetime_with_fraction = 1979-05-27T07:32:00.999999Z
+
+# Local Date-Time
+local_datetime = 1979-05-27T07:32:00
+
+# Local Date
+local_date = 1979-05-27
+
+# Local Time
+local_time = 07:32:00
+
+# Arrays
+array_numbers = [1, 2, 3, 4, 5]
+array_strings = ["apple", "banana", "cherry"]
+array_mixed = [1, "text", 3.14, true]
+array_multiline = ["one", "two", "three"]
+
+# Inline Tables
+inline_table = { key1 = "value1", key2 = 42, key3 = true }
+
+# Dotted Keys
+dotted.key.value = "Accessible with dotted notation"
+dotted.numbers.list = [1, 2, 3, 4]
+
+# Unicode Support
+unicode_text = "你好, мир, مرحبا, hola"
+
+# Special Character Escapes
+escape_newline = "This is a line\nwith a newline"
+escape_tab = "This is a tab:\tTabbed"
+escape_unicode = "Unicode heart: \u2665"
+
+# Integer with underscores for readability
+int_large = 1_000_000
+
+# Float with underscores for readability
+float_large = 3.141_592_653_589_793
+
+# Boolean edge cases
+bool_case_sensitive = true # TOML booleans are strictly lowercase
+
+# Tables
+[table]
+key = "value"
+
+[table.subtable]
+nested_key = 1234
+
+# Arrays of Tables
+[[array_of_tables]]
+name = "Item 1"
+value = 10
+
+[[array_of_tables]]
+name = "Item 2"
+value = 20
+
+[[array_of_tables]]
+name = "Item 3"
+value = 30
+
+# Nested Array of Tables
+[[nested_array]]
+name = "Outer 1"
+
+[[nested_array.inner]]
+name = "Inner 1"
+
+[[nested_array.inner]]
+name = "Inner 2"
+
+[[nested_array]]
+name = "Outer 2"
+
+[[nested_array.inner]]
+name = "Inner 1"
+
+[[nested_array.inner]]
+name = "Inner 2"
