@@ -1,0 +1,9 @@
+[MASTER]
+ignore=venv,__pycache__,.git,tests
+persistent=yes
+
+[MESSAGES CONTROL]
+disable=W0718,R0801,R0903,E1101,E0401,R0401,W0613,W0401
+
+[FORMAT]
+max-line-length=80

@@ -1,0 +1,42 @@
+[project]
+name = "toml_parser"
+version = "1.0.0"
+description = "A simple and easy to use TOML parser and validator for Python."
+authors = [
+    { name = "Marcus Fredriksson", email = "marcus@marcusfredriksson.com" },
+]
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+license = { file = "LICENSE" }
+requires-python = ">=3.11"
+readme = "README.md"
+dependencies = []
+keywords = ["toml", "parser", "validator", "python"]
+
+[project.optional-dependencies]
+build = ["build", "twine"]
+dev = [
+    "black>=24.10.0",
+    "pytest>=8.3.4",
+    "isort>=5.13.2",
+    "pylint>=3.3.2",
+    "pre-commit>=4.0.1",
+]
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["toml_parser"]
+
+[tool.black]
+line-length = 80
+target-version = ['py311']
+
+[tool.isort]
+profile = "black"
+line_length = 80
