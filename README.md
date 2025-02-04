@@ -50,7 +50,7 @@ Handlers may return any type, but is is recommended to use the return type as an
 
 ### Schema
 
-The schema is used to bring give the validator default values. The schema is defined in the `TOMLSchema` class, and is passed to the `TOMLValidator` class. To create a schema, you pass a dictionary with the keys and their respective allowed types.
+The schema is used to give the validator default handlers and an ability to make sure certain keys exist. The schema is defined in the `TOMLSchema` class, and is passed to the `TOMLValidator` class. To create a schema, you pass a dictionary with the keys and their respective allowed types.
 
 Here is an example of a schema:
 
