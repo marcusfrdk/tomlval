@@ -91,7 +91,12 @@ class TOMLValidator:
 
     def _get_missing_keys(self) -> list[str]:
         """Get a list of keys missing in the data."""
-        return [k for k in self._schema if k not in self._data]
+        # return [k for k in self._schema if k not in self._data]
+        return [
+            k
+            for k in self._schema
+            if k not in self._data and not k.endswith("?")
+        ]
 
     def _get_invalid_types(self) -> List[Tuple[str, Tuple[type, Any]]]:
         """Get a list of keys with invalid types."""
@@ -101,15 +106,20 @@ class TOMLValidator:
             if key in self._schema:
                 # List of types
                 if isinstance(self._schema[key], list):
-                    invalid_list_types = set()
 
-                    for t in value:
-                        if type(t) not in self._schema[key]:
-                            invalid_list_types.add(type(t))
+                    # Check if any of the types are valid
+                    if isinstance(value, list):
+                        invalid_list_types = set()
+                        for t in value:
+                            if type(t) not in self._schema[key]:
+                                invalid_list_types.add(type(t))
+                        invalid_list_types = list(invalid_list_types)
+                    else:
+                        invalid_list_types = type(value)
 
                     if invalid_list_types:
                         invalid_types.append(
-                            (key, (self._schema[key], list(invalid_list_types)))
+                            (key, (self._schema[key], invalid_list_types))
                         )
 
                 # Single type
@@ -122,6 +132,9 @@ class TOMLValidator:
                     invalid_types.append((key, (self._schema[key], types)))
 
         return invalid_types
+
+    def _get_handler_results(self) -> dict[str, Any]:
+        """Runs the handlers and gets the results."""
 
     def add_handler(self, key: str, handler: Handler):
         """
@@ -210,12 +223,12 @@ if __name__ == "__main__":
         toml_data = tomllib.load(file)
 
     # schema = TOMLSchema({"string_basic": (int, float)})
-    _schema = TOMLSchema({"int_positive": [str, list]})
+    _schema = TOMLSchema({"int_non_existing": int})
 
     validator = TOMLValidator(toml_data, _schema)
 
     # print(validator._get_missing_keys())
-    print(validator._get_invalid_types())
+    print(validator._get_missing_keys())
 
     # validator.add_handler("string*c", str)
 

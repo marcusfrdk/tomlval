@@ -44,6 +44,16 @@ class TOMLSchema:
                 }
             }
 
+        Optional values can be added by suffixing the key with a question mark.
+
+        Example:
+            {
+                "string?": str,
+                "number": (int, float)
+            }
+
+        In this case, string is an optional value, while number is required.
+
         Args:
             schema: dict - The TOML schema.
         Returns:
@@ -119,6 +129,8 @@ class TOMLSchema:
 
     def __getitem__(self, key: str) -> Union[type, Tuple[type]]:
         """Get an item from a TOML schema."""
+        if self.get(f"{key}?") is not None:
+            key = f"{key}?"
         return self._flat_schema[key]
 
     def __contains__(self, key: str) -> bool:
@@ -130,7 +142,9 @@ class TOMLSchema:
 
     def get(self, key: str, default=None) -> Union[type, Tuple[type]]:
         """Get an item from a TOML schema."""
-        return self._flat_schema.get(key, default)
+        if (value := self._flat_schema.get(key)) is None:
+            value = self._flat_schema.get(f"{key}?")
+        return value
 
     def keys(self) -> list[str]:
         """Get the keys from a TOML schema."""
@@ -143,3 +157,8 @@ class TOMLSchema:
     def items(self) -> List[Tuple[str, Union[type, Tuple[type]]]]:
         """Get the items from a TOML schema."""
         return list(self._flat_schema.items())
+
+
+if __name__ == "__main__":
+    s = TOMLSchema({"string?": str, "number": (int, float)})
+    print(s.get("string"))
