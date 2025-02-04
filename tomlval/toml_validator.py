@@ -4,8 +4,9 @@ import inspect
 import re
 from typing import Any, Callable
 
-from tomlval.errors import TOMLHandlerError
-from tomlval.types import Handler
+from tomlval.errors import TOMLHandlerError, TOMLSchemaError
+from tomlval.types import Handler, ValidatedSchema
+from tomlval.utils import flatten
 from tomlval.utils.regex import key_pattern
 
 
@@ -22,7 +23,8 @@ class TOMLValidator:
         Returns:
             None
         Raises:
-            TypeError - If data or schema is not a dictionary.
+            TypeError - If data is not a dictionary.
+            tomlval.errors.TOMLSchemaError - If the schema is invalid.
         """
 
         # Data
@@ -30,36 +32,13 @@ class TOMLValidator:
             raise TypeError("Data must be a dictionary.")
 
         # Schema
-        if schema is not None and not isinstance(schema, dict):
-            raise TypeError("Schema must be a dictionary.")
+        if schema is not None:
+            if not self._validate_schema(schema):
+                raise TOMLSchemaError()
 
         self._data = data
         self._schema = schema
         self._handlers = {}
-
-    def _map_keys(self) -> dict[str, Any]:
-        """A method to map keys in dot notation to their values."""
-
-        def _flatten(data: dict, parent_key: str = "") -> dict[str, Any]:
-            """A recursive function to flatten a dictionary."""
-
-            _data = {}
-            for key, value in data.items():
-                full_key = f"{parent_key}.{key}" if parent_key else key
-                if isinstance(value, dict):
-                    _data.update(_flatten(value, full_key))
-                elif isinstance(value, list):
-                    for idx, item in enumerate(value):
-                        list_key = f"{full_key}.[{idx}]"
-                        if isinstance(item, (dict, list)):
-                            _data.update(_flatten(item, list_key))
-                        else:
-                            _data[list_key] = item
-                else:
-                    _data[full_key] = value
-            return _data
-
-        return _flatten(self._data)
 
     def _map_handlers(self) -> dict[str, Handler]:
         """A method to map each key to a handler."""
@@ -90,8 +69,7 @@ class TOMLValidator:
 
             return matched_handler
 
-        keys = self._map_keys()
-        return {k: _match_key(k) for k in keys}
+        return {k: _match_key(k) for k in flatten(self._data)}
 
     def _inspect_function(self, fn: Callable) -> list[str]:
         """
@@ -108,6 +86,27 @@ class TOMLValidator:
             raise TypeError("fn must be a callable.")
 
         return list(inspect.signature(fn).parameters.keys())
+
+    def _validate_schema(self, schema: dict = None) -> bool:
+        """Method to validate a schema."""
+        schema = schema or self._schema
+
+        if not isinstance(schema, dict):
+            return False
+
+        def _check_schema(schema: dict) -> bool:
+            for k, v in schema.items():
+                if isinstance(v, dict):
+                    return _check_schema(v)
+                if not isinstance(v, type):
+                    return False
+            return True
+
+        return _check_schema(schema)
+
+    def _get_missing_keys(self) -> list[str]: ...
+
+    def _get_invalid_types(self) -> list[tuple[str, Any]]: ...
 
     def add_handler(self, key: str, handler: Handler):
         """
@@ -181,3 +180,23 @@ class TOMLValidator:
         ## Too many arguments
         else:
             raise TOMLHandlerError("Handler must accept 0, 1, or 2 arguments.")
+
+    def validate(self) -> ValidatedSchema:
+        """"""
+
+
+if __name__ == "__main__":
+    import pathlib
+    import tomllib
+
+    data_path = pathlib.Path("examples/full_spec.toml")
+
+    with data_path.open("rb") as file:
+        toml_data = tomllib.load(file)
+
+    validator = TOMLValidator(toml_data, schema={"name": str, "age": "nice"})
+
+    validator.add_handler("string*c", str)
+
+    # for k, v in validator.validate().items():
+    #     print(f"{k}: {v} ({type(v)})")
