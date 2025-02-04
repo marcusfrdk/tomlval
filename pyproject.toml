@@ -1,7 +1,7 @@
 [project]
 name = "tomlval"
 version = "1.0.0"
-description = "A simple and easy to use TOML parser and validator for Python."
+description = "A simple and easy to use TOML validator for Python."
 authors = [
     { name = "Marcus Fredriksson", email = "marcus@marcusfredriksson.com" },
 ]

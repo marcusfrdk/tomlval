@@ -96,6 +96,9 @@ class TOMLValidator:
     def _get_missing_keys(self) -> list[str]:
         """Get a list of keys missing in the data."""
         # return [k for k in self._schema if k not in self._data]
+        if not isinstance(self._schema, TOMLSchema):
+            return []
+
         return [
             k
             for k in self._schema
@@ -107,6 +110,9 @@ class TOMLValidator:
     ) -> List[Tuple[str, Tuple[Any, TypeList, TypeList]]]:
         """Get a list of keys with invalid types."""
         invalid_types = []
+
+        if not isinstance(self._schema, TOMLSchema):
+            return invalid_types
 
         for key, value in self._data.items():
             if key in self._schema:
@@ -152,6 +158,24 @@ class TOMLValidator:
             if h is None:
                 continue
 
+            # Built in type
+            if isinstance(h, type):
+                value = self._data[k]
+                if not isinstance(value, h):
+                    results[k] = ("invalid-type", (value, h, type(value)))
+                continue
+
+            # List of build in types
+            if isinstance(h, (list, tuple)):
+                _value = self._data[k]
+                _type = type(_value)
+
+                if not any(isinstance(_value, t) for t in h):
+                    results[k] = ("invalid-type", (_value, h, _type))
+
+                continue
+
+            # Custom handler
             fn_args = self._inspect_function(h)
 
             # No arguments
@@ -193,6 +217,13 @@ class TOMLValidator:
 
         # Built-in types
         if isinstance(handler, type):
+            self._handlers[key] = handler
+            return
+
+        # Iterable of types
+        if isinstance(handler, (list, tuple)) and all(
+            isinstance(h, type) for h in handler
+        ):
             self._handlers[key] = handler
             return
 
@@ -257,3 +288,11 @@ class TOMLValidator:
         }
 
         return errors
+
+
+if __name__ == "__main__":
+    val = TOMLValidator({"a_1_b": "1"})
+    # val.add_handler("a_*_b", int)
+    val.add_handler("a_*_b", (int, float))
+
+    print(val.validate())
