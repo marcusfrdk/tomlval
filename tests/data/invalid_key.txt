@@ -1,0 +1,14 @@
+.user.name
+user..name
+user.name.
+user.[a-z.name
+data.[-].value
+user*.name
+*user.profile
+user.[].profile
+config.[!].set
+space key.value
+a.b?.c
+settings.[0-9].theme
+env?.property
+config.[a-z].settings

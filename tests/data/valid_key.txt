@@ -1,0 +1,7 @@
+user.name
+user.*.profile
+app.database.config.*
+x.y.z
+global.*
+data.*.value
+*.user.name
