@@ -105,15 +105,14 @@ from tomlval import TOMLValidator, TOMLSchema
 path = pathlib.Path("data.toml")
 
 with path.open("rb") as file:
-    data = tomllib.load(file)
+    data_file = tomllib.load(file)
 
 # Use a dictionary
-# data = {
-#     "first_name": "John",
-#     "last_name": "Doe",
-#     "age": 25,
-#     ...
-# }
+data_dict = {
+    "first_name": "John",
+    "last_name": "Doe",
+    "age": 25
+}
 
 # Define schema (optional)
 structure = {
@@ -141,7 +140,8 @@ validator.add_handler("age", lambda value: None if 18 < value < 100 else "invali
 validator.add_handler("*", lambda: "invalid-key")
 
 # Validate the data
-errors = validator.validate(data)
+errors_file = validator.validate(data_file)
+errors_dict = validator.validate(data_dict)
 ```
 
 ## Future Plans
