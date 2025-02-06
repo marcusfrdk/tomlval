@@ -8,7 +8,7 @@ class TOMLSchema:
     """A class for defining and validating a TOML schema."""
 
     def __init__(self, schema: dict):
-        self._schema = schema
+        self._schema = flatten(schema)
         self._validate_schema()
 
     def __str__(self) -> str:
@@ -25,6 +25,8 @@ class TOMLSchema:
 
             if not key_pattern.match(k):
                 raise TOMLSchemaError(f"Invalid key '{k}' in schema.")
+
+            print(k, v)
 
             # Values
 
@@ -101,7 +103,7 @@ if __name__ == "__main__":
                 "nested_list": [{"key": str}, {"key": int}],
             },
         ],
-        "nested": {
+        "nested?": {
             "string": str,
             "fn1": lambda: None,
             "fn2": lambda key: None,
@@ -112,4 +114,4 @@ if __name__ == "__main__":
     }
 
     s = TOMLSchema(_schema)
-    print(s)
+    # print(s)
