@@ -1,6 +1,6 @@
 [project]
 name = "tomlval"
-version = "1.0.4"
+version = "1.1.0"
 description = "A simple and easy to use TOML validator for Python."
 authors = [
     { name = "Marcus Fredriksson", email = "marcus@marcusfredriksson.com" },
@@ -13,8 +13,8 @@ classifiers = [
 license = { file = "LICENSE" }
 requires-python = ">=3.11"
 readme = "README.md"
-dependencies = []
 keywords = ["toml", "validator", "validation", "parser", "python"]
+dependencies = []
 
 [project.optional-dependencies]
 build = ["build", "twine"]

@@ -1,5 +1,7 @@
 """ A module for defining a TOML schema structure. """
 
+from typing import Any
+
 from tomlval.errors import TOMLSchemaError
 from tomlval.utils import flatten, is_handler, key_pattern, stringify_schema
 
@@ -10,15 +12,32 @@ class TOMLSchema:
     def __init__(self, schema: dict):
         self._raw_schema = schema
         self._schema = flatten(self._raw_schema)
-        self._validate_schema()
+        self._validate_schema(self._schema)
 
     def __str__(self) -> str:
         return stringify_schema(self._schema)
 
     def __repr__(self) -> str:
-        return "<TOMLSchema>"
+        return f"<TOMLSchema keys={len(self)}>"
 
-    def _check_schema(self, schema: dict = None) -> None:
+    def __len__(self) -> int:
+        return len(self._schema)
+
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, TOMLSchema):
+            return False
+        return hash(self) == hash(other)
+
+    def __ne__(self, other: Any) -> bool:
+        return not self.__eq__(other)
+
+    def __hash__(self) -> int:
+        return hash(str(self))
+
+    def _validate_schema(self, schema: dict) -> None:
+        if not isinstance(schema, dict):
+            raise TOMLSchemaError("Schema must be a dictionary.")
+
         for k, v in (schema or self._schema).items():
             # Keys
             if not isinstance(k, str):
@@ -31,11 +50,11 @@ class TOMLSchema:
 
             ## Nested dictionary
             if isinstance(v, dict):
-                return self._check_schema(v)
+                return self._validate_schema(v)
 
             ## Nested list
             if isinstance(v, list) and all(isinstance(i, dict) for i in v):
-                return self._check_schema(v[0])
+                return self._validate_schema(v[0])
 
             ## Tuple/List
             if isinstance(v, (tuple, list)):
@@ -60,27 +79,6 @@ class TOMLSchema:
 
         return None
 
-    def _validate_schema(self) -> dict:
-        """
-        Validates the TOML schema and returns it.
-
-        Args:
-            schema: dict - The TOML schema.
-        Returns:
-            dict - The validated TOML schema.
-        Raises:
-            tomlval.errors.TOMLSchemaError - If the schema is invalid.
-        """
-
-        # Type
-        if not isinstance(self._schema, dict):
-            raise TOMLSchemaError("Schema must be a dictionary.")
-
-        # Structure
-        self._check_schema()
-
-        return {}
-
     def to_dict(self) -> dict:
         """
         Returns the schema as a dictionary.
@@ -97,7 +95,7 @@ class TOMLSchema:
 
 if __name__ == "__main__":
 
-    def my_fn(key1):
+    def my_fn(key):
         """My function"""
 
     _schema = {
