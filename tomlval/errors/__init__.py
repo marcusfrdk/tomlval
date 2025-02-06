@@ -2,3 +2,4 @@
 
 from .toml_handler_error import TOMLHandlerError
 from .toml_schema_error import TOMLSchemaError
+from .toml_schema_merge_error import TOMLSchemaMergeError

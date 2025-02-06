@@ -11,7 +11,7 @@ string_multiline_literal = '''This is a
 multiline literal string'''
 
 # Integers
-int_positive = [42]
+int_positive = 42
 int_negative = -42
 int_hex = 0x2A
 int_oct = 0o52
