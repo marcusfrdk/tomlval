@@ -1,18 +1,8 @@
 """ Module with utilities to print a schema. """
 
 import inspect
-import json
 
 from .flatten import flatten
-
-
-class SchemaEncoder(json.JSONEncoder):
-    """JSON encoder for the TOML schema."""
-
-    def default(self, o):
-        print(o)
-
-        return super().default(o)
 
 
 def stringify_schema(schema: dict) -> str:
@@ -46,6 +36,8 @@ def stringify_schema(schema: dict) -> str:
 
             # Named function
             return f"{o.__name__}({', '.join(params.keys())})"
+
+        return None
 
     if not isinstance(schema, dict):
         raise TypeError("Schema must be a dictionary.")

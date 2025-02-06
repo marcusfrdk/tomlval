@@ -8,11 +8,12 @@ class TOMLSchema:
     """A class for defining and validating a TOML schema."""
 
     def __init__(self, schema: dict):
-        self._schema = flatten(schema)
+        self._raw_schema = schema
+        self._schema = flatten(self._raw_schema)
         self._validate_schema()
 
     def __str__(self) -> str:
-        return stringify_schema(flatten(self._schema))
+        return stringify_schema(self._schema)
 
     def __repr__(self) -> str:
         return "<TOMLSchema>"
@@ -26,8 +27,6 @@ class TOMLSchema:
             if not key_pattern.match(k):
                 raise TOMLSchemaError(f"Invalid key '{k}' in schema.")
 
-            print(k, v)
-
             # Values
 
             ## Nested dictionary
@@ -39,10 +38,10 @@ class TOMLSchema:
                 return self._check_schema(v[0])
 
             ## Tuple/List
-            elif isinstance(v, (tuple, list)):
+            if isinstance(v, (tuple, list)):
                 invalid_indexes = []
                 for i, h in enumerate(v):
-                    if is_handler(h):
+                    if is_handler(h, k):
                         invalid_indexes.append(i)
                 if invalid_indexes:
                     invalid_indexes = ", ".join(map(str, invalid_indexes))
@@ -56,7 +55,7 @@ class TOMLSchema:
                     )
 
             ## Simple type
-            elif message := is_handler(v):
+            elif message := is_handler(v, k):
                 raise TOMLSchemaError(message)
 
         return None
@@ -82,10 +81,23 @@ class TOMLSchema:
 
         return {}
 
+    def to_dict(self) -> dict:
+        """
+        Returns the schema as a dictionary.
+
+        Args:
+            None
+        Returns:
+            dict - The schema as a dictionary.
+        Raises:
+            None
+        """
+        return self._raw_schema
+
 
 if __name__ == "__main__":
 
-    def my_fn(key):
+    def my_fn(key1):
         """My function"""
 
     _schema = {
@@ -114,4 +126,5 @@ if __name__ == "__main__":
     }
 
     s = TOMLSchema(_schema)
-    # print(s)
+    # print(s.to_dict())
+    print(s)

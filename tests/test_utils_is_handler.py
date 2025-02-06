@@ -37,9 +37,13 @@ def test_invalid_named_handlers():
     def named_handler_invalid_keys(key1, key2):
         """Named handler with invalid keys."""
 
-    assert is_handler(named_handler_invalid_key) == ("Key 'key1' is not valid.")
-    assert is_handler(named_handler_invalid_keys) == (
-        "Keys 'key1', 'key2' are not valid."
+    assert (
+        is_handler(named_handler_invalid_key)
+        == "Function has an invalid parameter 'key1'."
+    )
+    assert (
+        is_handler(named_handler_invalid_keys)
+        == "Function has invalid parameters 'key1', 'key2'."
     )
 
 
@@ -51,7 +55,10 @@ def test_type_handlers():
 
 
 def test_valid_lambda_handlers():
-    """Test if the 'is_handler' function correctly identifies valid lambda handlers."""
+    """
+    Test if the 'is_handler' function
+    correctly identifies valid lambda handlers.
+    """
     assert is_handler(lambda: None) == ""
     assert is_handler(lambda key: None) == ""
     assert is_handler(lambda key, value: None) == ""
@@ -59,8 +66,14 @@ def test_valid_lambda_handlers():
 
 
 def test_invalid_lambda_handlers():
-    """Test if the 'is_handler' function correctly identifies invalid lambda handlers."""
-    assert is_handler(lambda key1: None) == ("Key 'key1' is not valid.")
+    """
+    Test if the 'is_handler' function correctly
+    identifies invalid lambda handlers.
+    """
+    assert (
+        is_handler(lambda key1: None)
+        == "Function has an invalid parameter 'key1'."
+    )
     assert is_handler(lambda key1, key2: None) == (
-        "Keys 'key1', 'key2' are not valid."
+        "Function has invalid parameters 'key1', 'key2'."
     )
