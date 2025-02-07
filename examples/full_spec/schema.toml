@@ -17,12 +17,18 @@ int_hex = 0x2A
 int_oct = 0o52
 int_bin = 0b101010
 
+# Integer with underscores for readability
+int_large = 1_000_000
+
 # Floats
 float_simple = 3.14
 float_exponent = 1e6
 float_negative_exponent = 6.626e-34
 float_with_sign = -3.14
 float_with_underscores = 1_000.000_001
+
+# Float with underscores for readability
+float_large = 3.141_592_653_589_793
 
 # Boolean
 bool_true = true
@@ -62,15 +68,6 @@ unicode_text = "你好, мир, مرحبا, hola"
 escape_newline = "This is a line\nwith a newline"
 escape_tab = "This is a tab:\tTabbed"
 escape_unicode = "Unicode heart: \u2665"
-
-# Integer with underscores for readability
-int_large = 1_000_000
-
-# Float with underscores for readability
-float_large = 3.141_592_653_589_793
-
-# Boolean edge cases
-bool_case_sensitive = true # TOML booleans are strictly lowercase
 
 # Tables
 [table]

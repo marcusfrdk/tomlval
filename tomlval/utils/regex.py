@@ -8,3 +8,9 @@ key_pattern = re.compile(
     r"(?:(?:\*?[\w*]+(?:\?)?(?:\[\])?\.)+)?"
     r"\*?[\w*]+(?:\?)?(?!\[\])(?:\*|\?)?$"
 )
+
+dict_key_pattern = re.compile(
+    r"^(?!.*\*\*)" + r"(?:(?:\*?[\w*]+\.)+)?" + r"\*?[\w*]+(?:\*)?$"
+)
+
+nested_array_pattern = re.compile(r"\.\[(\d+)]\.")

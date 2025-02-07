@@ -43,7 +43,7 @@ def stringify_schema(schema: dict) -> str:
         raise TypeError("Schema must be a dictionary.")
 
     rows = []
-    for k, v in flatten(schema).items():
+    for k, v in flatten(schema, method="schema").items():
         if isinstance(v, tuple):
             rows.append(f"{k} = ({', '.join(map(_get_name, v))})")
         elif isinstance(v, list):

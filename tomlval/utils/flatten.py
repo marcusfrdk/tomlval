@@ -2,13 +2,88 @@
 
 import re
 from collections import defaultdict
+from typing import Literal
 
 from tomlval import TOMLSchemaMergeError
 
 
+def flatten(dictionary: dict, method: Literal["all", "schema"] = "all") -> dict:
+    """
+    Flatten a dictionary into a single-level dictionary with
+    post-processed array values.
+
+    Args:
+        dictionary: dict - The dictionary to flatten.
+        method: Literal["all", "schema"] - The flattening method.
+            - all - Flatten all values, including lists.
+            - schema - Flatten values suitable for a TOML schema.
+    Returns:
+        dict - The flattened dictionary.
+    Raises:
+        TOMLSchemaMergeError - If a merged schema contains an
+        invalid list value.
+    """
+    pattern = re.compile(r"^(.*)\.\[(\d+)\]$")
+    result = {}
+    temp = defaultdict(list)
+
+    flat_dict = {"all": flatten_all, "schema": flatten_schema}[method](
+        dictionary
+    )
+
+    for key, value in flat_dict.items():
+        match = pattern.match(key)
+        if match:
+            base_key, index = match.groups()
+            temp[base_key].append((int(index), value))
+        else:
+            result[key] = value
+
+    for base_key, items in temp.items():
+        sorted_values = [val for _, val in sorted(items, key=lambda x: x[0])]
+        result[base_key] = sorted_values
+    return result
+
+
 def flatten_all(dictionary: dict):
     """
-    Flatten a nested dictionary into a single-level dictionary.
+    Function to flatten a dictionary into a single level dictionary.
+    This includes lists, which will be flattened into a single level list.
+    (e.g. key = [1, 2] -> key.[0] = 1, key.[1] = 2)
+
+    Args:
+        dictionary: dict - The dictionary to flatten.
+    Returns:
+        dict - The flattened dictionary
+    Raises:
+        None
+    """
+
+    def _flatten(data: dict, parent_key: str = "") -> dict:
+        """A recursive function to flatten a dictionary."""
+        _data = {}
+        for key, value in data.items():
+            full_key = f"{parent_key}.{key}" if parent_key else key
+            if isinstance(value, dict):
+                _data.update(_flatten(value, full_key))
+            elif isinstance(value, list):
+                for idx, item in enumerate(value):
+                    list_key = f"{full_key}.[{idx}]"
+                    if isinstance(item, (dict, list)):
+                        _data.update(_flatten(item, list_key))
+                    else:
+                        _data[list_key] = item
+            else:
+                _data[full_key] = value
+        return _data
+
+    return _flatten(dictionary)
+
+
+def flatten_schema(dictionary: dict):
+    """
+    Flatten a dictionary into a single-level dictionary
+    suitable for use as a TOML schema.
 
     Args:
         dictionary: dict - The dictionary to be flattened.
@@ -16,7 +91,7 @@ def flatten_all(dictionary: dict):
         dict - A flattened dictionary with keys that represent
         the nested structure.
     Raises:
-        (No exceptions explicitly raised at this level)
+        None
     """
 
     def merge_values(old, new):
@@ -32,6 +107,7 @@ def flatten_all(dictionary: dict):
             TOMLSchemaMergeError - If either 'old' or 'new'
             is not a type or tuple.
         """
+
         allowed = (tuple, type)
         if not isinstance(old, allowed):
             raise TOMLSchemaMergeError(old, new)
@@ -166,52 +242,40 @@ def flatten_all(dictionary: dict):
     return _flatten(dictionary, parent_key="", merge_as_tuple=False)
 
 
-def flatten(dictionary: dict) -> dict:
-    """
-    Flatten a dictionary into a single-level dictionary with
-    post-processed array values.
-
-    Args:
-        dictionary: dict - The dictionary to flatten.
-    Returns:
-        dict - The flattened dictionary.
-    Raises:
-        TOMLSchemaMergeError - If a merged schema contains an
-        invalid list value.
-    """
-    pattern = re.compile(r"^(.*)\.\[(\d+)\]$")
-    result = {}
-    temp = defaultdict(list)
-
-    flat_dict = flatten_all(dictionary)
-    for key, value in flat_dict.items():
-        match = pattern.match(key)
-        if match:
-            base_key, index = match.groups()
-            temp[base_key].append((int(index), value))
-        else:
-            result[key] = value
-
-    for base_key, items in temp.items():
-        sorted_values = [val for _, val in sorted(items, key=lambda x: x[0])]
-        result[base_key] = sorted_values
-    return result
-
-
 if __name__ == "__main__":
-    _data = {
-        "string": str,
-        "multi_type": (int, float),
-        "list1": [str],
-        "list2": [int, float],
-        "nested_list": [{"key": str}],
-        "deeply_nested_list": [{"nested_list": [{"key": str}]}],
-        "merged_nested_list": [{"key": str}, {"key": (int,)}],
-        # "merged_nested_list2": [{"key": str}, {"key": [int, float]}],
-    }
+    # _data = {
+    #     "string": str,
+    #     "multi_type": (int, float),
+    #     "list1": [str],
+    #     "list2": [int, float],
+    #     "nested_list": [{"key": str}],
+    #     "deeply_nested_list": [{"nested_list": [{"key": str}]}],
+    #     "merged_nested_list": [{"key": str}, {"key": (int,)}],
+    #     # "merged_nested_list2": [{"key": str}, {"key": [int, float]}],
+    # }
 
-    try:
-        for k, v in flatten(_data).items():
-            print(f"{k} = {v}")
-    except TOMLSchemaMergeError as e:
-        print(f"Error: {e}")
+    import os
+    import tomllib
+
+    path = os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__),
+            "..",
+            "..",
+            "examples",
+            "full_spec",
+            "schema.toml",
+        )
+    )
+
+    with open(path, "rb") as f:
+        _data = tomllib.load(f)
+
+    for k, v in flatten(_data).items():
+        print(f"{k} = {v}")
+
+    # try:
+    #     for k, v in flatten_all(_data).items():
+    #         print(f"{k} = {v}")
+    # except TOMLSchemaMergeError as e:
+    #     print(f"Error: {e}")

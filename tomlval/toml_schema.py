@@ -1,9 +1,17 @@
 """ A module for defining a TOML schema structure. """
 
+import fnmatch
+import re
 from typing import Any
 
 from tomlval.errors import TOMLSchemaError
-from tomlval.utils import flatten, is_handler, key_pattern, stringify_schema
+from tomlval.utils import (
+    flatten,
+    is_handler,
+    key_pattern,
+    nested_array_pattern,
+    stringify_schema,
+)
 
 
 class TOMLSchema:
@@ -11,7 +19,8 @@ class TOMLSchema:
 
     def __init__(self, schema: dict):
         self._raw_schema = schema
-        self._schema = flatten(self._raw_schema)
+        self._schema = flatten(self._raw_schema, method="schema")
+        self._keys = {}
         self._validate_schema(self._schema)
 
     def __str__(self) -> str:
@@ -33,6 +42,16 @@ class TOMLSchema:
 
     def __hash__(self) -> int:
         return hash(str(self))
+
+    def __contains__(self, key: str) -> bool:
+        return key in self._schema or key in self._keys
+
+    def __getitem__(self, key: str) -> Any:
+        if key in self._schema:
+            return self._schema[key]
+        if key in self._keys:
+            return self._schema[self._keys[key]]
+        raise KeyError(f"Key '{key}' not found in schema.")
 
     def _validate_schema(self, schema: dict) -> None:
         if not isinstance(schema, dict):
@@ -77,7 +96,74 @@ class TOMLSchema:
             elif message := is_handler(v, k):
                 raise TOMLSchemaError(message)
 
+        # Remap keys
+        for k in schema:
+            old_key = k
+            new_key = str(k).replace("[]", "").replace("?", "")
+            self._keys[new_key] = old_key
+
         return None
+
+    def get(self, key: str, default: Any = None) -> Any:
+        """
+        Get a value from the schema.
+
+        Args:
+            key: str - The key to get the value for.
+            default: Any - The default value to return
+            if the key does not exist.
+        Returns:
+            Any - The value for the key.
+        Raises:
+            None
+        """
+
+        if key in self._schema:
+            return self._schema[key]
+
+        if key in self._keys:
+            return self._schema[self._keys[key]]
+
+        return default
+
+    def keys(self) -> list[str]:
+        """
+        Returns the keys in the schema.
+
+        Args:
+            None
+        Returns:
+            list[str] - The keys in the schema.
+        Raises:
+            None
+        """
+        return list(self._schema.keys())
+
+    def values(self) -> list[str]:
+        """
+        Returns the values in the schema.
+
+        Args:
+            None
+        Returns:
+            list[str] - The values in the schema.
+        Raises:
+            None
+        """
+        return list(self._schema.values())
+
+    def items(self) -> list[str]:
+        """
+        Returns the items in the schema.
+
+        Args:
+            None
+        Returns:
+            list[str] - The items in the schema.
+        Raises:
+            None
+        """
+        return list(self._schema.items())
 
     def to_dict(self) -> dict:
         """
@@ -92,6 +178,49 @@ class TOMLSchema:
         """
         return self._raw_schema
 
+    def compare_keys(self, dictionary: dict) -> list[str]:
+        """
+        Compare the keys in the schema with a dictionary.
+
+        If a key with a wildcard is present, it will cause
+        the key to be considered as present if any key matches.
+
+        Currently, nested arrays also consider the key as present
+        for any match. This does not make sure ALL sub-arrays
+        include the key.
+
+        Args:
+            dictionary: dict - The dictionary to compare.
+        Returns:
+            list[str] - The keys that are missing in the dictionary.
+        Raises:
+            None
+        """
+
+        # TODO: Implement a more thorough comparison.
+        # At the moment, this method only checks for existence.
+        # So it does not check if all nested keys are valid,
+        # only a single one.
+
+        provided_keys = set(
+            re.sub(nested_array_pattern, ".", k) for k in dictionary
+        )
+        required_keys = set(
+            k.replace("[]", "") for k in self.keys() if "*" not in k
+        )
+
+        # Wildcard keys
+        for key in self.keys():
+            if "*" in key:
+                pattern = key.replace("[]", "")
+                if not any(
+                    fnmatch.fnmatch(provided_key, pattern)
+                    for provided_key in provided_keys
+                ):
+                    required_keys.add(pattern)
+
+        return list(required_keys - provided_keys)
+
 
 if __name__ == "__main__":
 
@@ -99,7 +228,7 @@ if __name__ == "__main__":
         """My function"""
 
     _schema = {
-        "string": str,
+        "string?": str,
         "multi_typed": (str, int, float, lambda key: None),
         "fn1": lambda: None,
         "fn2": lambda key: None,
@@ -125,4 +254,5 @@ if __name__ == "__main__":
 
     s = TOMLSchema(_schema)
     # print(s.to_dict())
-    print(s)
+    print(s.get("string"))
+    # print(s["string"])
