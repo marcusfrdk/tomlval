@@ -27,10 +27,10 @@ class TOMLValidator:
         self,
         schema: TOMLSchema = None,
         handlers: dict = None,
-        on_missing: Callable[[], Any] = lambda: "missing",
+        on_missing: Callable[[str], Any] = lambda key: "missing",
         on_type_mismatch: Callable[
-            [TypeList, TypeList], Any
-        ] = lambda expected, got: "incorrect-type",
+            [str, TypeList, TypeList], Any
+        ] = lambda key, expected, got: "incorrect-type",
     ):
         """
         Initialize a new TOML validator.
@@ -40,9 +40,9 @@ class TOMLValidator:
         Args:
             schema?: TOMLSchema - The TOML schema to validate against.
             handlers?: dict - The custom handlers to use.
-            on_missing?: Callable[[], Any] - A callback function that runs
-            when a key is missing in the data.
-            on_type_mismatch?: Callable[[TypeList, TypeList], Any] - A callback
+            on_missing?: Callable[[str], Any] - A callback function that runs
+            when a key is missing in the data, the parameter must be 'key'.
+            on_type_mismatch?: Callable[[str, TypeList, TypeList], Any] - A callback
             function that runs when a key has a type does not match the
             type in the schema.
         Returns:
@@ -76,12 +76,16 @@ class TOMLValidator:
         if not inspect.isfunction(on_missing):
             raise TypeError("on_missing must be a function.")
 
+        _mp_params = set(inspect.signature(on_missing).parameters)
+        if not {"key"}.issubset(_mp_params):
+            raise TypeError("on_missing must accept parameter 'key'.")
+
         ## Type mismatch callback
         if not inspect.isfunction(on_type_mismatch):
             raise TypeError("on_type_mismatch must be a function.")
 
         _otm_params = set(inspect.signature(on_type_mismatch).parameters)
-        if not {"expected", "got"}.issubset(_otm_params):
+        if not {"key", "expected", "got"}.issubset(_otm_params):
             raise TypeError(
                 "on_type_mismatch must accept parameters 'expected' and 'got'."
             )
@@ -218,7 +222,7 @@ class TOMLValidator:
 
         # Missing keys
         _missing_keys = self._schema.compare_keys(_data)
-        _results.update({k: self._on_missing() for k in _missing_keys})
+        _results.update({k: self._on_missing(k) for k in _missing_keys})
 
         # Remove valid keys
         _results = {k: v for k, v in _results.items() if v}
@@ -249,25 +253,25 @@ if __name__ == "__main__":
     with open(path, "rb") as f:
         _dfs = tomllib.load(f)
 
-    _dd = {"name": "John doe"}
+    _dd = {}
 
-    _d = _dfs
+    _d = _dd
 
     # Schema
     # _s = TOMLSchema({"array_of_tables[].name": str})
     _s = TOMLSchema(
         {
-            "array_of_tables": [
-                {
-                    "name": lambda value: (
-                        "invalid-str" if len(value) <= 0 else None
-                    ),
-                    "value": int,
-                }
-            ],
-            "nested_array": [{"inner": [{"name": str}]}],
-            # "int*": str,
-            "*hex": str,
+            # "array_of_tables": [
+            #     {
+            #         "name": lambda value: (
+            #             "invalid-str" if len(value) <= 0 else None
+            #         ),
+            #         "value": int,
+            #     }
+            # ],
+            # "nested_array": [{"inner?": [{"name": str}]}],
+            # "nested?": {"key": str},
+            "nested?[].key": str
         }
     )
 

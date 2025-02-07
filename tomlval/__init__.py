@@ -2,5 +2,4 @@
 
 from .errors import *
 from .toml_schema import TOMLSchema
-
-# from .toml_validator import TOMLValidator
+from .toml_validator import TOMLValidator

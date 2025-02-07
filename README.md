@@ -20,134 +20,232 @@ pip install tomlval
 
 The package is available for Python 3.11 and newer.
 
-## Concepts
+## Usage
 
-Before using the package, there are some concepts you may need to understand for the most optimal use of the package.
+### Handlers
 
-### Key
+Handlers are the validation functions used to validate the value of keys in the input data.
 
-A key is the name of a field in a TOML file, such as `name`, `person.name`, etc. Keys must conform to the TOML specification, which means keys are either **snake_case** or **SCREAMING_SNAKE_CASE**. For the validator, keys may also include wildcards, such as `*name`, `person.*`, etc.
+#### Types
 
-### Handler
+A handler must be one of `type`, `Callable`. This means any object of type `type` is valid, and and `Callable`, such as `lambda` functions as well as named functions are valid.
 
-A _handler_ is a function that is called for a certain key. Handlers can be of the following types:
+#### Parameters
 
--   Types, such as `int`, `str`, `float`.
--   Tuples/Lists of types, such as `(int, str)`, `[int, str]`.
--   Anonymous functions (`lambda`)
--   Named functions (Callable objects, such as `def my_handler(key, value): ...`)
+The handler will dynamically be passed either the `key` and/or `value` argument based of what parameters are defined. No parameters are also okay.
 
-The following argument configurations are supported:
+Examples of valid handlers are:
 
--   `fn()`
--   `fn(key)`
--   `fn(value)`
--   `fn(key, value)`
+-   **Types:** `str`, `int`, `datetime.datetime`, ...
+-   **Anonymous functions:** `lambda: ...`, `lambda key: ...`, `lambda value: ...`, `lambda key, value: ...`
+-   **Named functions:** `def my_fn()`, `def my_fn(key)`, `def my_fn(value)`, `def my_fn(key, value)`
 
-If the handler has any other parameters than `key` or `value`, the validator will raise a `TOMLHandlerError`.
+If a handler accepts any parameters which are not `key` or `value`, a `TOMLHandlerError` will be raised.
 
-Handlers may return any type, but is is recommended to use the return type as an error message if the value is invalid. The validator considers a `None` return value a successful validation.
+#### Return Types
+
+A handler returns an error, meaning _nullish_ values tell the validator that the test passes. The reason for this design is that the handler may return error messages or any value your program needs.
 
 ### Schema
 
-The schema is used to give the validator default handlers and an ability to make sure certain keys exist. The schema is defined in the `TOMLSchema` class, and is passed to the `TOMLValidator` class. To create a schema, you pass a dictionary with the keys and their respective allowed types.
+A schema is an _optional_ structure used to add functionality to the validator, this includes validation for missing keys and default handlers for keys.
 
-Here is an example of a schema:
+#### Keys
 
-```python
+Keys follow the TOML specification, meaning keys must be in either `snake_case` or `SCREAMING_SNAKE_CASE`. This project adds some special notation in the form of suffixing a key with `?` to make it optional, adding `[]` to the end to make the key an array and wildcard regex pattern support. The importance of keys are based of specificity, so `my.key` would dominate both `my.*` and `*`.
+
+This means the following keys are examples of valid keys:
+
+-   `name`, `user.name`: Specific key
+-   `*_name`, `user.*`, `*name*`, `user.*.name`: Wildcard keys
+-   `last_name?`, `user.name?`, `array?[].key`: Optional keys
+-   `array[]`, `array?[]`, `array[].key`: Nested arrays
+
+All keys can be written in dot-notation, meaning a deeply nested object/array can be written in a simpler form. For example:
+
+```py
 {
-    "single_type": str,
-    "list_of_strings": [str],
-    "mixed_list:" [str, int],
-    "multiple_types": (int, float),
-    "optional?": str,
-    "nested": {
-        "key": str
+    "very": {
+        "deeply": {
+            "nested": {
+                "object": {
+                    "key": str
+                }
+            }
+        }
     }
 }
 ```
 
-When a schema is defined, the validator will also check if values are missing and if their types are correct. If a handler is defined for a key, the validator will use the handler instead of the type defined in the schema.
+can be written as `"very.deeply.nested.object.key": str`. This notation also supports optionality and arrays. This would work by just suffixing the word with `?` and if an array, suffix the `?` with `[]`.
+
+#### Defining a Schema
+
+In order to define a new schema, you can use the following code as reference:
+
+```py
+from tomlval import TOMLSchema
+
+def my_fn(key, value):
+    return "some-error"
+
+def default_handler() -> str:
+    """ Default handler for all keys """
+    return "invalid-key"
+
+schema = TOMLSchema({
+    "single_type": str,
+    "multiple_types": (int, float),
+    "single_handler": lambda: "error-message",
+    "multiple_handlers": (lambda: "error-message", str, my_fn),
+    "optional?": str
+    "list_of_strings": [str],
+    "nested_dictionary": {
+        "key": str,
+        ...
+    },
+    "nested_array": [
+        {
+            "key": str,
+            ...
+        },
+        ...
+    ],
+})
+```
+
+_Note: When a nested array includes dictionaries with different structures, they will be merged. If the merge fails, a `TOMLSchemaMergeError` will be raised._
 
 ### Validator
 
-The validator is the core of the package. It is used to validate a TOML file. A schema is optionally passed to the validator, and handlers are added using the `add_handler` method. Once you feel ready, you can call the `validate` method with the data you want to validate as an argument to get a dictionary of errors.
+The validator defines the blueprint for how data should be validated. This is defined in the optional schema, or handlers can be manually added using the `add_handler(key, fn)` method. Handlers, like keys, are prioritized based of the key priority.
 
-Currently, there are two type of error structures, for type errors and all other errors.
+#### Examples
 
-Type errors are structured as follows:
+##### Basic
 
-```python
-"key": (message, (value, expected_type, actual_type))
+This examples includes the most basic use case, where a default handler is defined manually:
+
+```py
+from tomlval import TOMLValidator
+
+validator = TOMLValidator()
+validator.add_handler("*", lambda: "invalid-key")
 ```
 
-_`expected_type` and `actual_type` can be either `type` or `tuple[type]`_
+##### With a Schema
 
-All other errors have a slightly simpler structure:
+This example includes a schema, assume the schema is populated with the structure and handlers you require.
 
-```python
-"key": (message, value)
-```
-
-The point of the validator is to parse the data and get the errors in a clean and easy way. **What you do with the errors is up to you.**
-
-## Example
-
-Here is a full example of how to use the validator.
-
-```python
-import pathlib
-import tomllib
-import datetime
+```py
 from tomlval import TOMLValidator, TOMLSchema
 
-# Load data from file
-path = pathlib.Path("data.toml")
+schema = TOMLSchema({...})
+validator = TOMLValidator(schema)
+```
 
-with path.open("rb") as file:
-    data_file = tomllib.load(file)
+##### Customizing a Defined Schema
 
-# Use a dictionary
-data_dict = {
-    "first_name": "John",
-    "last_name": "Doe",
-    "age": 25
-}
+This example includes a case where you might have defined a _shared_ schema somewhere in your code but you need to customize specific keys:
 
-# Define schema (optional)
-structure = {
-    "first_name": str,
-    "last_name": str,
-    "age": int,
-    "email": str,
-    "phone": str,
-    "birthday": datetime.datetime,
-    "address": {
-        "street": str,
-        "city": str,
-        "zip": int
-    }
-}
+```py
+from tomlval import TOMLValidator
+from .schema import schema
 
-schema = TOMLSchema(structure) # If the struture is invalid, a TOMLSchemaError is raised
+def validate_age(value):
+    if value <= 0:
+        return "value-to-low"
+    return None
+
+validator = TOMLValidator(schema)
+validator.add_handler("user.age", validate_age)
+```
+
+##### Customizing The Default Callbacks
+
+For some people, it might not be the best option to return an error message, and instead some other value might be preferred or even a more verbose error message. In this case, the `on_missing` and `on_type_mismatch` callbacks are changed:
+
+```py
+from tomlval import TOMLValidator
+from .schema import schema
+
+def on_missing(key: str):
+    return f"'{key}' is missing"
+
+def on_type_mismatch(key: str, expected: type, got: type)
+    return f"The argument '{key}' expected type '{expected.__name__}', got '{got.__name__}'"
+
+validator = TOMLValidator(
+    schema,
+    on_missing=on_missing,
+    on_type_mismatch=on_type_mismatch
+)
+```
+
+### Validation
+
+Now that you have defined your schema and validator, the validator is now ready to be used on TOML data.
+
+In order to use the validator, the `validate(data)` method is used. It accepts any dictionary as an argument and outputs a flat dictionary of all keys in dot-notation with each key's respective error value.
+
+#### Examples
+
+##### Validate File
+
+This example shows a use-case where a TOML file is validated.
+
+```py
+import tomllib
+from datetime import datetime
+from pathlib import Path
+from tomlval import TOMLSchema, TOMLValidator
+
+# Read file
+file_path = Path("example.toml")
+with file_path.open("rb") as file:
+    data = tomllib.load(file)
+
+# Define schema
+schema = TOMLSchema({
+    "*_name": str,
+    "age": lambda value: "invalid-age" if age <= 0 else None,
+    "birthday": datetime,
+    "*": lambda: "invalid-key"
+})
 
 # Define validator
 validator = TOMLValidator(schema)
 
-# Add handlers
-validator.add_handler("*_name", lambda key: None if key in ["first_name", "last_name"] else "invalid-key")
-validator.add_handler("age", lambda value: None if 18 < value < 100 else "invalid-age")
-validator.add_handler("*", lambda: "invalid-key")
-
-# Validate the data
-errors_file = validator.validate(data_file)
-errors_dict = validator.validate(data_dict)
+# Validate data
+errors = validator.validate(data)
 ```
 
-## Future Plans
+##### Validate Dictionary
 
-Future plans are found in the [TODO](TODO.md) file.
+Instead of loading a file, you might have pre-loaded TOML-data in the form of a dictionary.
+
+```py
+import tomllib
+from datetime import datetime
+from pathlib import Path
+from tomlval import TOMLSchema, TOMLValidator
+from .data import data
+
+# Define schema
+schema = TOMLSchema({
+    "*_name": str,
+    "age": lambda value: "invalid-age" if age <= 0 else None,
+    "birthday": datetime,
+    "*": lambda: "invalid-key"
+})
+
+# Define validator
+validator = TOMLValidator(schema)
+
+# Validate data
+errors = validator.validate(data)
+```
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - seea the [LICENSE](LICENSE) file for details.

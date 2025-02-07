@@ -197,16 +197,22 @@ class TOMLSchema:
             None
         """
 
-        # TODO: Implement a more thorough comparison.
-        # At the moment, this method only checks for existence.
-        # So it does not check if all nested keys are valid,
-        # only a single one.
+        # TODO:
+        # - Implement a more thorough comparison.
+        #   At the moment, this method only checks for existence.
+        #   So it does not check if all nested keys are valid,
+        #   only a single one.
+        # - Better optional checking
+        #   There are some edge cases that can occur when only
+        #   checking for the existence of a ?-character.
 
         provided_keys = set(
             re.sub(nested_array_pattern, ".", k) for k in dictionary
         )
         required_keys = set(
-            k.replace("[]", "") for k in self.keys() if "*" not in k
+            k.replace("[]", "")
+            for k in self.keys()
+            if "*" not in k and "?" not in k
         )
 
         # Wildcard keys
@@ -228,20 +234,20 @@ if __name__ == "__main__":
         """My function"""
 
     _schema = {
-        "string?": str,
-        "multi_typed": (str, int, float, lambda key: None),
-        "fn1": lambda: None,
-        "fn2": lambda key: None,
-        "fn3": lambda key, value: None,
-        "my_fn": my_fn,
-        "multi_fn": [str, lambda key: None],
-        "nested_list": [
-            {"key": str},
-            {
-                "key": int,
-                "nested_list": [{"key": str}, {"key": int}],
-            },
-        ],
+        # "string?": str,
+        # "multi_typed": (str, int, float, lambda key: None),
+        # "fn1": lambda: None,
+        # "fn2": lambda key: None,
+        # "fn3": lambda key, value: None,
+        # "my_fn": my_fn,
+        # "multi_fn": [str, lambda key: None],
+        # "nested_list": [
+        #     {"key": str},
+        #     {
+        #         "key": int,
+        #         "nested_list": [{"key": str}, {"key": int}],
+        #     },
+        # ],
         "nested?": {
             "string": str,
             "fn1": lambda: None,
@@ -253,6 +259,7 @@ if __name__ == "__main__":
     }
 
     s = TOMLSchema(_schema)
+    print(s)
     # print(s.to_dict())
-    print(s.get("string"))
+    # print(s.get("string"))
     # print(s["string"])
