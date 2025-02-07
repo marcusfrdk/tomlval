@@ -8,7 +8,12 @@ from typing import Any, Callable, Tuple, Union
 
 from tomlval.errors import TOMLHandlerError
 from tomlval.types import Handler
-from tomlval.utils import dict_key_pattern, flatten, is_handler
+from tomlval.utils import (
+    dict_key_pattern,
+    flatten,
+    is_handler,
+    stringify_schema,
+)
 
 from .toml_schema import TOMLSchema
 
@@ -85,6 +90,9 @@ class TOMLValidator:
         self._handlers = handlers or {}
         self._on_missing = on_missing
         self._on_type_mismatch = on_type_mismatch
+
+    def __str__(self) -> str:
+        return stringify_schema(self.handlers)
 
     def _map_handlers(self, data: dict) -> dict[str, Handler]:
         """A method to map each key to a handler."""
@@ -177,7 +185,7 @@ class TOMLValidator:
 
             # Function
             if inspect.isfunction(_handler):
-                _params = inspect.signature(_handler).parameters
+                _params = list(inspect.signature(_handler).parameters)
 
                 # No parameters
                 if len(_params) == 0:
@@ -249,9 +257,17 @@ if __name__ == "__main__":
     # _s = TOMLSchema({"array_of_tables[].name": str})
     _s = TOMLSchema(
         {
-            "array_of_tables": [{"name": str, "value": int}],
+            "array_of_tables": [
+                {
+                    "name": lambda value: (
+                        "invalid-str" if len(value) <= 0 else None
+                    ),
+                    "value": int,
+                }
+            ],
             "nested_array": [{"inner": [{"name": str}]}],
-            "int*": int,
+            # "int*": str,
+            "*hex": str,
         }
     )
 
@@ -264,4 +280,7 @@ if __name__ == "__main__":
     # Validate
     errors = _v.validate(_d)
 
+    # print(errors)
+    print()
+    print(_v)
     print(errors)
