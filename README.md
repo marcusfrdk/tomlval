@@ -32,7 +32,7 @@ A handler must be one of `type`, `Callable`. This means any object of type `type
 
 #### Parameters
 
-The handler will dynamically be passed either the `key` and/or `value` argument based of what parameters are defined. No parameters are also okay.
+The handler will dynamically be passed either the `key` and/or `value` argument based of what parameters are defined.
 
 Examples of valid handlers are:
 
@@ -48,11 +48,11 @@ A handler returns an error, meaning _nullish_ values tell the validator that the
 
 ### Schema
 
-A schema is an _optional_ structure used to add functionality to the validator, this includes validation for missing keys and default handlers for keys.
+A schema is an _optional_ structure used to add functionality to the validator, this includes validation for missing keys and default handlers.
 
 #### Keys
 
-Keys follow the TOML specification, meaning keys must be in either `snake_case` or `SCREAMING_SNAKE_CASE`. This project adds some special notation in the form of suffixing a key with `?` to make it optional, adding `[]` to the end to make the key an array and wildcard regex pattern support. The importance of keys are based of specificity, so `my.key` would dominate both `my.*` and `*`.
+Keys follow the TOML specification, meaning keys must be in either `snake_case` or `SCREAMING_SNAKE_CASE`. This project adds some special notation in the form of suffixing a key with `?` to make it optional, adding `[]` to the end to make the key a nested array as well as wildcard regex pattern support. The importance of keys are based of specificity, so `my.key` would dominate both `my.*` and `*`.
 
 This means the following keys are examples of valid keys:
 
@@ -163,7 +163,7 @@ validator.add_handler("user.age", validate_age)
 
 ##### Customizing The Default Callbacks
 
-For some people, it might not be the best option to return an error message, and instead some other value might be preferred or even a more verbose error message. In this case, the `on_missing` and `on_type_mismatch` callbacks are changed:
+For some people, it might not be the best option to return an error message, and instead some other value might be preferred or you might want a more verbose error message. In this case, the `on_missing` and `on_type_mismatch` callbacks can be changed changed:
 
 ```py
 from tomlval import TOMLValidator
