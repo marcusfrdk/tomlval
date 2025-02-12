@@ -87,7 +87,12 @@ class TOMLValidator:
         _otm_params = set(inspect.signature(on_type_mismatch).parameters)
         if not {"key", "expected", "got"}.issubset(_otm_params):
             raise TypeError(
-                "on_type_mismatch must accept parameters 'key', 'expected' and 'got'."
+                " ".join(
+                    [
+                        "on_type_mismatch must accept",
+                        "parameters 'key', 'expected' and 'got'.",
+                    ]
+                )
             )
 
         self._schema = schema or TOMLSchema({})

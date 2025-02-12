@@ -209,11 +209,17 @@ class TOMLSchema:
         provided_keys = set(
             re.sub(nested_array_pattern, ".", k) for k in dictionary
         )
-        required_keys = set(
-            k.replace("[]", "")
-            for k in self.keys()
-            if "*" not in k and "?" not in k
-        )
+
+        # Remove characters and map keys
+        required_keys = set()
+        nested_arrays = {}
+
+        for key in self.keys():
+            if "*" not in key and "?" not in key:
+                _key = key.replace("[]", "")
+                if "[]" in key:
+                    nested_arrays[_key] = key
+                required_keys.add(_key)
 
         # Wildcard keys
         for key in self.keys():
@@ -224,6 +230,12 @@ class TOMLSchema:
                     for provided_key in provided_keys
                 ):
                     required_keys.add(pattern)
+
+        # Re-substitute keys
+        for k, v in nested_arrays.items():
+            if k in required_keys:
+                required_keys.remove(k)
+                required_keys.add(v)
 
         return list(required_keys - provided_keys)
 
