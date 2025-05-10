@@ -8,6 +8,9 @@
 ![PyPI](https://img.shields.io/pypi/v/tomlval)
 ![License](https://img.shields.io/github/license/marcusfrdk/tomlval)
 
+![Downloads](https://static.pepy.tech/badge/tomlval)
+![Monthly Downloads](https://static.pepy.tech/badge/tomlval/month)
+
 A simple and easy to use TOML validator for Python.
 
 ## Installation
@@ -21,6 +24,31 @@ pip install tomlval
 The package is available for Python 3.11 and newer.
 
 ## Usage
+
+### TLDR
+
+```py
+from datetime import datetime
+from tomlval import TOMLSchema, TOMLValidator
+
+# Load data
+data = {...}
+
+# Define schema
+schema = TOMLSchema({
+    "*_name": str, # Wildcard key
+    "last_name": lambda value: "invalid-last-name" if age <= 0 else None, # Specific key with custom handler
+    "age": (int, float), # Multiple types
+    "birthday": datetime, # Specific key with type handler
+    "*": lambda: "invalid-key" # Catch-all handler
+})
+
+# Define validator
+validator = TOMLValidator(schema)
+
+# Validate data
+errors = validator.validate(data)
+```
 
 ### Handlers
 
