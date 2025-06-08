@@ -7,7 +7,6 @@
 ![contributors](https://img.shields.io/github/contributors/marcusfrdk/tomlval)
 ![PyPI](https://img.shields.io/pypi/v/tomlval)
 ![License](https://img.shields.io/github/license/marcusfrdk/tomlval)
-
 ![Downloads](https://static.pepy.tech/badge/tomlval)
 ![Monthly Downloads](https://static.pepy.tech/badge/tomlval/month)
 

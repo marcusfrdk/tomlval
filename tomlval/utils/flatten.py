@@ -1,13 +1,16 @@
-""" A function to flatten a dictionary into a single-level dictionary. """
+"""A function to flatten a dictionary into a single-level dictionary."""
 
 import re
 from collections import defaultdict
-from typing import Literal
+from typing import Any, Dict, Literal
 
 from tomlval import TOMLSchemaMergeError
+from tomlval.types import Handler
 
 
-def flatten(dictionary: dict, method: Literal["all", "schema"] = "all") -> dict:
+def flatten(
+    dictionary: dict, method: Literal["all", "schema"] = "all"
+) -> Dict[str, Handler]:
     """
     Flatten a dictionary into a single-level dictionary with
     post-processed array values.
@@ -59,9 +62,9 @@ def flatten_all(dictionary: dict):
         None
     """
 
-    def _flatten(data: dict, parent_key: str = "") -> dict:
+    def _flatten(data: Dict[str, Any], parent_key: str = "") -> Dict[str, Any]:
         """A recursive function to flatten a dictionary."""
-        _data = {}
+        _data: Dict[str, Any] = {}
         for key, value in data.items():
             full_key = f"{parent_key}.{key}" if parent_key else key
             if isinstance(value, dict):

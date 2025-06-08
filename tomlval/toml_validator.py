@@ -1,6 +1,6 @@
-""" Module for creating a TOML validator. """
+"""Module for creating a TOML validator."""
 
-# pylint: disable=C0103
+# pylint: disable=C0103, R0911
 
 import inspect
 import re
@@ -25,12 +25,15 @@ class TOMLValidator:
 
     def __init__(
         self,
-        schema: TOMLSchema = None,
-        handlers: dict = None,
+        schema: TOMLSchema | None = None,
+        handlers: dict | None = None,
         on_missing: Callable[[str], Any] = lambda key: "missing",
         on_type_mismatch: Callable[
             [str, TypeList, TypeList], Any
         ] = lambda key, expected, got: "incorrect-type",
+        on_pattern_mismatch: Callable[
+            [str, Any, re.Pattern], Any
+        ] = lambda key, value, pattern: "pattern-mismatch",
     ):
         """
         Initialize a new TOML validator.
@@ -42,9 +45,12 @@ class TOMLValidator:
             handlers?: dict - The custom handlers to use.
             on_missing?: Callable[[str], Any] - A callback function that runs
             when a key is missing in the data, the parameter must be 'key'.
-            on_type_mismatch?: Callable[[str, TypeList, TypeList], Any] - A callback
-            function that runs when a key has a type does not match the
+            on_type_mismatch?: Callable[[str, TypeList, TypeList], Any] - A
+            callback function that runs when a key has a type does not match the
             type in the schema.
+            on_pattern_mismatch?: Callable[[str, Any, re.Pattern], Any] - A
+            callback function that runs when a key has a value that does not match the
+            regex pattern in the schema.
         Returns:
             None
         Raises:
@@ -95,10 +101,26 @@ class TOMLValidator:
                 )
             )
 
+        ## Pattern mismatch callback
+        if not inspect.isfunction(on_pattern_mismatch):
+            raise TypeError("on_pattern_mismatch must be a function.")
+
+        _opm_params = set(inspect.signature(on_pattern_mismatch).parameters)
+        if not {"key", "value", "pattern"}.issubset(_opm_params):
+            raise TypeError(
+                " ".join(
+                    [
+                        "on_pattern_mismatch must accept",
+                        "parameters 'key', 'value' and 'pattern'.",
+                    ]
+                )
+            )
+
         self._schema = schema or TOMLSchema({})
         self._handlers = handlers or {}
         self._on_missing = on_missing
         self._on_type_mismatch = on_type_mismatch
+        self._on_pattern_mismatch = on_pattern_mismatch
 
     def __str__(self) -> str:
         return stringify_schema(self.handlers)
@@ -118,7 +140,7 @@ class TOMLValidator:
 
             best_specificity = -1
             best_wildcard_count = float("inf")
-            matched_handler = None
+            matched_handler: Handler | None = None
 
             for pattern, handler in _handlers.items():
                 if "*" in pattern:
@@ -185,6 +207,18 @@ class TOMLValidator:
         def _run_handler(key: str, value: Any) -> Any:
             """Run a handler and return the result."""
             _handler = _handlers[key]
+
+            # Regex pattern
+            if isinstance(_handler, re.Pattern):
+                if not isinstance(value, str):
+                    return self._on_type_mismatch(
+                        key=key, expected="str", got=type(value)
+                    )
+                if not _handler.fullmatch(value):
+                    return self._on_pattern_mismatch(
+                        key, value=value, pattern=_handler
+                    )
+                return False
 
             # Built-in type
             if isinstance(_handler, type) and not isinstance(value, _handler):

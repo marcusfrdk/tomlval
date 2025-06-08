@@ -1,4 +1,4 @@
-""" A module for defining a TOML schema structure. """
+"""A module for defining a TOML schema structure."""
 
 import fnmatch
 import re
@@ -91,6 +91,10 @@ class TOMLSchema:
                             ]
                         )
                     )
+
+            ## Regex pattern
+            if isinstance(v, re.Pattern):
+                pass
 
             ## Simple type
             elif message := is_handler(v, k):

@@ -1,10 +1,11 @@
-""" Module to check if a value is a valid handler. """
+"""Module to check if a value is a valid handler."""
 
 import inspect
+import re
 from typing import Any
 
 
-def is_handler(fn: Any, key: str = None) -> str:
+def is_handler(fn: Any, key: str | None = None) -> str:
     """
     Function to check if a value is a valid handler.
 
