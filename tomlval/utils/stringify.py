@@ -1,8 +1,10 @@
-""" Module with utilities to print a schema. """
+"""Module with utilities to print a schema."""
 
 import inspect
+import re
+from typing import Any
 
-from .flatten import flatten
+from tomlval.utils.flatten import flatten
 
 
 def stringify_schema(schema: dict) -> str:
@@ -18,7 +20,7 @@ def stringify_schema(schema: dict) -> str:
         JSONEncodeError - If the schema cannot be encoded.
     """
 
-    def _get_name(o):
+    def _get_name(o: Any) -> str:
         """Get the name of a type, function or lambda."""
         if isinstance(o, type):
             return o.__name__
@@ -31,13 +33,17 @@ def stringify_schema(schema: dict) -> str:
             # Lambda
             if o.__name__ == "<lambda>":
                 if len(params) == 0:
-                    return "lambda"
-                return f"lambda {', '.join(params.keys())}"
+                    return "lambda: ..."
+                return f"lambda {', '.join(params.keys())}: ..."
 
             # Named function
             return f"{o.__name__}({', '.join(params.keys())})"
 
-        return None
+        # Regex pattern
+        if isinstance(o, re.Pattern):
+            return o.pattern
+
+        return "unknown"
 
     if not isinstance(schema, dict):
         raise TypeError("Schema must be a dictionary.")

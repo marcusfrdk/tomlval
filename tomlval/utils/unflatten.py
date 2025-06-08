@@ -1,4 +1,4 @@
-""" A module to unflatten a flattened dictionary into a nested dictionary. """
+"""A module to unflatten a flattened dictionary into a nested dictionary."""
 
 # pylint: disable=R0912
 

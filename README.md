@@ -207,7 +207,7 @@ from .schema import schema
 def on_missing(key: str):
     return f"'{key}' is missing"
 
-def on_type_mismatch(key: str, expected: type, got: type)
+def on_type_mismatch(key: str, expected: type, got: type):
     return f"The argument '{key}' expected type '{expected.__name__}', got '{got.__name__}'"
 
 def on_pattern_mismatch(key: str, value: Any, pattern: re.Pattern):

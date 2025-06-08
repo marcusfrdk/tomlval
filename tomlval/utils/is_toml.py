@@ -1,10 +1,9 @@
-""" Function to check if a file is a TOML file. """
+"""Function to check if a file is a TOML file."""
 
 import tomllib
 
 from tomlval.types import PathOrStr
-
-from .to_path import to_path
+from tomlval.utils.to_path import to_path
 
 
 def is_toml(path_or_str: PathOrStr) -> bool:

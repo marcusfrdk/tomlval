@@ -1,4 +1,4 @@
-""" Types for the TOML parser. """
+"""Types for the TOML parser."""
 
-from .handler import Handler
-from .path_or_str import PathOrStr
+from tomlval.types.handler import Handler
+from tomlval.types.path_or_str import PathOrStr

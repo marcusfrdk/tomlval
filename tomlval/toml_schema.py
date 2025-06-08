@@ -2,7 +2,7 @@
 
 import fnmatch
 import re
-from typing import Any
+from typing import Any, List, Tuple
 
 from tomlval.errors import TOMLSchemaError
 from tomlval.utils import (
@@ -130,7 +130,7 @@ class TOMLSchema:
 
         return default
 
-    def keys(self) -> list[str]:
+    def keys(self) -> List[str]:
         """
         Returns the keys in the schema.
 
@@ -143,7 +143,7 @@ class TOMLSchema:
         """
         return list(self._schema.keys())
 
-    def values(self) -> list[str]:
+    def values(self) -> List[Any]:
         """
         Returns the values in the schema.
 
@@ -156,7 +156,7 @@ class TOMLSchema:
         """
         return list(self._schema.values())
 
-    def items(self) -> list[str]:
+    def items(self) -> List[Tuple[str, Any]]:
         """
         Returns the items in the schema.
 

@@ -1,7 +1,6 @@
 """Module to check if a value is a valid handler."""
 
 import inspect
-import re
 from typing import Any
 
 
