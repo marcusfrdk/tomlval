@@ -216,7 +216,8 @@ def on_pattern_mismatch(key: str, value: Any, pattern: re.Pattern):
 validator = TOMLValidator(
     schema,
     on_missing=on_missing,
-    on_type_mismatch=on_type_mismatch
+    on_type_mismatch=on_type_mismatch,
+    on_pattern_mismatch=on_pattern_mismatch
 )
 ```
 
