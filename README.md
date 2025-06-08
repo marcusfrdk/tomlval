@@ -27,8 +27,12 @@ The package is available for Python 3.11 and newer.
 ### TLDR
 
 ```py
+import re
 from datetime import datetime
 from tomlval import TOMLSchema, TOMLValidator
+
+# Regex pattern
+username_pattern = re.compile(r"^[a-zA-Z0-9_]+$")
 
 # Load data
 data = {...}
@@ -39,6 +43,7 @@ schema = TOMLSchema({
     "last_name": lambda value: "invalid-last-name" if age <= 0 else None, # Specific key with custom handler
     "age": (int, float), # Multiple types
     "birthday": datetime, # Specific key with type handler
+    "username": username_pattern, # Regex pattern
     "*": lambda: "invalid-key" # Catch-all handler
 })
 
@@ -55,7 +60,7 @@ Handlers are the validation functions used to validate the value of keys in the 
 
 #### Types
 
-A handler must be one of `type`, `Callable`. This means any object of type `type` is valid, and and `Callable`, such as `lambda` functions as well as named functions are valid.
+A handler must be one of `type`, `Callable` or `re.Pattern`. This means any object of type `type` or `re.Pattern` is valid, and and `Callable`, such as `lambda` functions as well as named functions are valid.
 
 #### Parameters
 
@@ -63,7 +68,8 @@ The handler will dynamically be passed either the `key` and/or `value` argument 
 
 Examples of valid handlers are:
 
--   **Types:** `str`, `int`, `datetime.datetime`, ...
+-   **Types:** `str`, `int`, ...
+-   **Objects:** `datetime.datetime`, `re.Pattern`, ...
 -   **Anonymous functions:** `lambda: ...`, `lambda key: ...`, `lambda value: ...`, `lambda key, value: ...`
 -   **Named functions:** `def my_fn()`, `def my_fn(key)`, `def my_fn(value)`, `def my_fn(key, value)`
 
@@ -193,6 +199,8 @@ validator.add_handler("user.age", validate_age)
 For some people, it might not be the best option to return an error message, and instead some other value might be preferred or you might want a more verbose error message. In this case, the `on_missing` and `on_type_mismatch` callbacks can be changed changed:
 
 ```py
+import re
+from typing import Any
 from tomlval import TOMLValidator
 from .schema import schema
 
@@ -201,6 +209,9 @@ def on_missing(key: str):
 
 def on_type_mismatch(key: str, expected: type, got: type)
     return f"The argument '{key}' expected type '{expected.__name__}', got '{got.__name__}'"
+
+def on_pattern_mismatch(key: str, value: Any, pattern: re.Pattern):
+    return f"The argument '{key}' with value '{value}' does not match the pattern '{pattern.pattern}'"
 
 validator = TOMLValidator(
     schema,
