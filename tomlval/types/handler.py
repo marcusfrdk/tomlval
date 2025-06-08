@@ -1,10 +1,10 @@
-""" Typing for validation handlers. """
+"""Typing for validation handlers."""
 
-from typing import Callable, Optional, Union
+from typing import Any, Callable, Optional, Union
 
 Handler = Union[
     type,
-    Callable[[], None],
-    Callable[[str], None],
-    Callable[[str, Optional[str]], None],
+    Callable[[], Any],
+    Callable[[str], Any],
+    Callable[[str, Optional[str]], Any],
 ]

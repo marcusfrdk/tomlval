@@ -7,6 +7,7 @@ import re
 from typing import Any, Callable, Tuple, Union
 
 from tomlval.errors import TOMLHandlerError
+from tomlval.toml_schema import TOMLSchema
 from tomlval.types import Handler
 from tomlval.utils import (
     dict_key_pattern,
@@ -14,8 +15,6 @@ from tomlval.utils import (
     is_handler,
     stringify_schema,
 )
-
-from .toml_schema import TOMLSchema
 
 TypeList = Union[type, Tuple[type, ...]]
 
@@ -125,12 +124,12 @@ class TOMLValidator:
     def __str__(self) -> str:
         return stringify_schema(self.handlers)
 
-    def _map_handlers(self, data: dict) -> dict[str, Handler]:
+    def _map_handlers(self, data: dict) -> dict[str, Handler | None]:
         """A method to map each key to a handler."""
 
         _handlers = flatten(self.handlers, method="schema")
 
-        def _match_key(key: str) -> Handler:
+        def _match_key(key: str) -> Handler | None:
             """The method that finds the most appropriate handler for a key."""
 
             key = re.sub(r"\.\[\d+]\.", "[].", key)
