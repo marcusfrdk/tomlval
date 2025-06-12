@@ -10,7 +10,7 @@
 ![Downloads](https://static.pepy.tech/badge/tomlval)
 ![Monthly Downloads](https://static.pepy.tech/badge/tomlval/month)
 
-A simple and easy to use TOML validator for Python.
+A package used for validating TOML data against a schema and manually added handlers. It is designed to be flexible and easy to use, allowing you to customize the validation process to fit your needs.
 
 ## Installation
 
@@ -22,269 +22,218 @@ pip install tomlval
 
 The package is available for Python 3.11 and newer.
 
-## Usage
-
-### TLDR
-
-```py
-import re
-from datetime import datetime
-from tomlval import TOMLSchema, TOMLValidator
-
-# Regex pattern
-username_pattern = re.compile(r"^[a-zA-Z0-9_]+$")
-
-# Load data
-data = {...}
-
-# Define schema
-schema = TOMLSchema({
-    "*_name": str, # Wildcard key
-    "last_name": lambda value: "invalid-last-name" if age <= 0 else None, # Specific key with custom handler
-    "age": (int, float), # Multiple types
-    "birthday": datetime, # Specific key with type handler
-    "username": username_pattern, # Regex pattern
-    "*": lambda: "invalid-key" # Catch-all handler
-})
-
-# Define validator
-validator = TOMLValidator(schema)
-
-# Validate data
-errors = validator.validate(data)
-```
+## Concepts
 
 ### Handlers
 
-Handlers are the validation functions used to validate the value of keys in the input data.
+A handler is a validation function used by the validator to validate the value of a key. Handlers can be defined in a [schema](docs/SCHEMA.md) or added directly to the [validator](docs/VALIDATOR.md) using the `add_handler(key, fn) method.
 
-#### Types
-
-A handler must be one of `type`, `Callable` or `re.Pattern`. This means any object of type `type` or `re.Pattern` is valid, and and `Callable`, such as `lambda` functions as well as named functions are valid.
-
-#### Parameters
-
-The handler will dynamically be passed either the `key` and/or `value` argument based of what parameters are defined.
-
-Examples of valid handlers are:
-
--   **Types:** `str`, `int`, ...
--   **Objects:** `datetime.datetime`, `re.Pattern`, ...
--   **Anonymous functions:** `lambda: ...`, `lambda key: ...`, `lambda value: ...`, `lambda key, value: ...`
--   **Named functions:** `def my_fn()`, `def my_fn(key)`, `def my_fn(value)`, `def my_fn(key, value)`
-
-If a handler accepts any parameters which are not `key` or `value`, a `TOMLHandlerError` will be raised.
-
-#### Return Types
-
-A handler returns an error, meaning _nullish_ values tell the validator that the test passes. The reason for this design is that the handler may return error messages or any value your program needs.
+You can read more about handlers in the [handler documentation](docs/HANDLER.md).
 
 ### Schema
 
-A schema is an _optional_ structure used to add functionality to the validator, this includes validation for missing keys and default handlers.
+A schema is a collection of keys and their associated handlers. It is defined as a dictionary where the keys are specific- or wildcard keys and the values are the functions ([handlers](docs/HANDLER.md)).
 
-#### Keys
-
-Keys follow the TOML specification, meaning keys must be in either `snake_case` or `SCREAMING_SNAKE_CASE`. This project adds some special notation in the form of suffixing a key with `?` to make it optional, adding `[]` to the end to make the key a nested array as well as wildcard regex pattern support. The importance of keys are based of specificity, so `my.key` would dominate both `my.*` and `*`.
-
-This means the following keys are examples of valid keys:
-
--   `name`, `user.name`: Specific key
--   `*_name`, `user.*`, `*name*`, `user.*.name`: Wildcard keys
--   `last_name?`, `user.name?`, `array?[].key`: Optional keys
--   `array[]`, `array?[]`, `array[].key`: Nested arrays
-
-All keys can be written in dot-notation, meaning a deeply nested object/array can be written in a simpler form. For example:
-
-```py
-{
-    "very": {
-        "deeply": {
-            "nested": {
-                "object": {
-                    "key": str
-                }
-            }
-        }
-    }
-}
-```
-
-can be written as `"very.deeply.nested.object.key": str`. This notation also supports optionality and arrays. This would work by just suffixing the word with `?` and if an array, suffix the `?` with `[]`.
-
-#### Defining a Schema
-
-In order to define a new schema, you can use the following code as reference:
-
-```py
-from tomlval import TOMLSchema
-
-def my_fn(key, value):
-    return "some-error"
-
-def default_handler() -> str:
-    """ Default handler for all keys """
-    return "invalid-key"
-
-schema = TOMLSchema({
-    "single_type": str,
-    "multiple_types": (int, float),
-    "single_handler": lambda: "error-message",
-    "multiple_handlers": (lambda: "error-message", str, my_fn),
-    "optional?": str
-    "list_of_strings": [str],
-    "nested_dictionary": {
-        "key": str,
-        ...
-    },
-    "nested_array": [
-        {
-            "key": str,
-            ...
-        },
-        ...
-    ],
-})
-```
-
-_Note: When a nested array includes dictionaries with different structures, they will be merged. If the merge fails, a `TOMLSchemaMergeError` will be raised._
+You can read more about schemas in the [schema documentation](docs/SCHEMA.md).
 
 ### Validator
 
-The validator defines the blueprint for how data should be validated. This is defined in the optional schema, or handlers can be manually added using the `add_handler(key, fn)` method. Handlers, like keys, are prioritized based of the key priority.
+The validator is the object that performs the actual validation on the data. It uses the optionally defined schema alongside manually added [handlers](docs/HANDLER.md) to validate the data and returns a dictionary of errors.
 
-#### Examples
+You can read more about the validator in the [validator documentation](docs/VALIDATOR.md).
 
-##### Basic
+## Examples
 
-This examples includes the most basic use case, where a default handler is defined manually:
-
-```py
-from tomlval import TOMLValidator
-
-validator = TOMLValidator()
-validator.add_handler("*", lambda: "invalid-key")
-```
-
-##### With a Schema
-
-This example includes a schema, assume the schema is populated with the structure and handlers you require.
-
-```py
-from tomlval import TOMLValidator, TOMLSchema
-
-schema = TOMLSchema({...})
-validator = TOMLValidator(schema)
-```
-
-##### Customizing a Defined Schema
-
-This example includes a case where you might have defined a _shared_ schema somewhere in your code but you need to customize specific keys:
-
-```py
-from tomlval import TOMLValidator
-from .schema import schema
-
-def validate_age(value):
-    if value <= 0:
-        return "value-to-low"
-    return None
-
-validator = TOMLValidator(schema)
-validator.add_handler("user.age", validate_age)
-```
-
-##### Customizing The Default Callbacks
-
-For some people, it might not be the best option to return an error message, and instead some other value might be preferred or you might want a more verbose error message. In this case, the `on_missing` and `on_type_mismatch` callbacks can be changed changed:
-
-```py
-import re
-from typing import Any
-from tomlval import TOMLValidator
-from .schema import schema
-
-def on_missing(key: str):
-    return f"'{key}' is missing"
-
-def on_type_mismatch(key: str, expected: type, got: type):
-    return f"The argument '{key}' expected type '{expected.__name__}', got '{got.__name__}'"
-
-def on_pattern_mismatch(key: str, value: Any, pattern: re.Pattern):
-    return f"The argument '{key}' with value '{value}' does not match the pattern '{pattern.pattern}'"
-
-validator = TOMLValidator(
-    schema,
-    on_missing=on_missing,
-    on_type_mismatch=on_type_mismatch,
-    on_pattern_mismatch=on_pattern_mismatch
-)
-```
-
-### Validation
-
-Now that you have defined your schema and validator, the validator is now ready to be used on TOML data.
-
-In order to use the validator, the `validate(data)` method is used. It accepts any dictionary as an argument and outputs a flat dictionary of all keys in dot-notation with each key's respective error value.
-
-#### Examples
-
-##### Validate File
-
-This example shows a use-case where a TOML file is validated.
-
-```py
-import tomllib
-from datetime import datetime
-from pathlib import Path
+```python
 from tomlval import TOMLSchema, TOMLValidator
 
-# Read file
-file_path = Path("example.toml")
-with file_path.open("rb") as file:
-    data = tomllib.load(file)
-
-# Define schema
+# Define a schema
 schema = TOMLSchema({
-    "*_name": str,
-    "age": lambda value: "invalid-age" if age <= 0 else None,
-    "birthday": datetime,
-    "*": lambda: "invalid-key"
+    "name": str,
+    "age": int,
 })
 
-# Define validator
-validator = TOMLValidator(schema)
+# Sample TOML data
+data = {
+    "name": "Alice",
+    "age": 30,
+}
 
-# Validate data
+# Create a validator
+validator = TOMLValidator(schema=schema)
+
+# Validate the data
 errors = validator.validate(data)
 ```
 
-##### Validate Dictionary
-
-Instead of loading a file, you might have pre-loaded TOML-data in the form of a dictionary.
-
-```py
-import tomllib
-from datetime import datetime
-from pathlib import Path
+```python
 from tomlval import TOMLSchema, TOMLValidator
-from .data import data
 
-# Define schema
+# Define a schema
 schema = TOMLSchema({
-    "*_name": str,
-    "age": lambda value: "invalid-age" if age <= 0 else None,
+    "email?": str,  # Optional email
+    "username": lambda value: "invalid-username" if len(value) < 3 else None,  # Custom handler
+})
+
+# Sample TOML data
+data = {
+    "username": "ab",
+}
+
+# Create a validator
+validator = TOMLValidator(schema=schema)
+
+# Validate the data
+errors = validator.validate(data)
+print(errors)
+```
+
+```python
+import re
+from datetime import datetime
+from tomlval import TOMLSchema, TOMLValidator
+
+# Regex patterns
+username_pattern = re.compile(r"^[a-zA-Z0-9_]+$")
+email_pattern = re.compile(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
+
+# Sample TOML data
+data = {
+    "first_name": "John",
+    "last_name": "Doe",
+    "age": 25,
+    "email": "john.doe@example.com",
+    "username": "john_doe",
+    "birthday": datetime(1999, 1, 1),
+    "is_active": True,
+    "scores": [85, 92, 78],
+    "preferences": {
+        "theme": "dark",
+        "notifications": True,
+        "language": "en"
+    },
+    "social_profiles": [
+        {"platform": "twitter", "handle": "@johndoe"},
+        {"platform": "github", "handle": "johndoe"}
+    ],
+    "work_history": [
+        {
+            "company": "TechCorp",
+            "position": "Developer",
+            "skills": [{"name": "Python", "level": 8}, {"name": "JavaScript", "level": 7}]
+        }
+    ],
+    "metadata": {
+        "created_at": datetime.now(),
+        "tags": ["user", "premium"]
+    }
+}
+
+# Define a schema
+schema = TOMLSchema({
+    # Basic type validation
+    "first_name": str,
+    "age": (int, float),  # Multiple types
     "birthday": datetime,
+    "is_active": bool,
+
+    # Optional keys
+    "middle_name?": str,
+    "phone?": str,
+
+    # Regex pattern validation
+    "username": username_pattern,
+    "email": email_pattern,
+
+    # Custom handlers
+    "last_name": lambda value: "too-short" if len(value) < 2 else None,
+    "age": lambda value: "invalid-age" if not (0 < value < 150) else None,
+    "email": lambda key: f"missing-{key}" if not key else None,
+    "username": lambda key, value: f"invalid-{key}" if len(value) < 3 else None,
+
+    # List validation
+    "scores": [int],  # List of integers
+    "tags?": [str],   # Optional List of strings
+
+    # Nested object validation
+    "preferences": {
+        "theme": str,
+        "notifications": bool,
+        "language?": str  # Optional nested key
+    },
+
+    # List of objects
+    "social_profiles": [
+        {
+            "platform": str,
+            "handle": lambda value: "invalid-handle" if not value.startswith("@") else None
+        }
+    ],
+
+    # Deeply nested list of objects
+    "work_history": [
+        {
+            "company": str,
+            "position": str,
+            "skills": [
+                {
+                    "name": str,
+                    "level": lambda value: "invalid-level" if not (1 <= value <= 10) else None
+                }
+            ]
+        }
+    ],
+
+    # Optional nested object
+    "metadata?": {
+        "created_at": datetime,
+        "tags": [str],
+        "version?": float
+    },
+
+    # Wildcard patterns
+    "*_name": str,                    # Matches first_name, last_name, etc.
+    "preferences.*": lambda: None,    # Matches any key in preferences
+    "*_profiles": [dict],             # Matches social_profiles, etc.
+
+    # Keys within lists
+    "scores[]": int,                  # Individual List elements
+    "work_history[].company": str,    # Nested List element validation
+    "social_profiles[].platform": lambda value: "unsupported" if value not in ["twitter", "github", "linkedin"] else None,
+
+    # Optional List elements
+    "work_history[]?": dict,          # Optional List elements
+    "preferences?.*": str,            # Optional wildcard in optional object
+
+    # Catch-all handler
     "*": lambda: "invalid-key"
 })
 
-# Define validator
-validator = TOMLValidator(schema)
+# Custom callback functions
+def on_missing_key(key: str) -> str:
+    return f"Missing key '{key}'"
 
-# Validate data
+def on_type_mismatch(key: str, expected, got) -> str:
+    return f"Key '{key}' expected {expected.__name__} but got {got.__name__}"
+
+def on_pattern_mismatch(key: str, pattern) -> str:
+    return f"Key '{key}' does not match pattern {pattern.pattern}"
+
+# Override default handlers
+validator = TOMLValidator(
+    schema=schema,
+    on_missing=on_missing_key,
+    on_type_mismatch=on_type_mismatch,
+    on_pattern_mismatch=on_pattern_mismatch
+)
+
+# Manual handlers
+validator.add_handler("some.key", lambda value: "custom-error" if value == "invalid" else None)
+
+# Validate
 errors = validator.validate(data)
 ```
 
 ## License
 
-This project is licensed under the MIT License - seea the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
