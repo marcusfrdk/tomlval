@@ -1,6 +1,6 @@
 [project]
 name = "tomlval"
-version = "1.1.5"
+version = "1.2.0"
 description = "A simple and easy to use TOML validator for Python."
 authors = [
     { name = "Marcus Fredriksson", email = "marcus@marcusfredriksson.com" },
@@ -11,7 +11,7 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 license = { file = "LICENSE" }
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 readme = "README.md"
 keywords = ["toml", "validator", "validation", "python"]
 dependencies = []
@@ -35,11 +35,26 @@ include = ["tomlval", "tomlval.*"]
 
 [tool.black]
 line-length = 80
-target-version = ['py311']
+target-version = ["py313"]
 
 [tool.isort]
 profile = "black"
 line_length = 80
+
+[tool.pylint.master]
+ignore = ["venv", "__pycache__", ".git", "tests"]
+persistent = true
+
+[tool.pylint.messages_control]
+disable = []
+
+[tool.pylint.format]
+max-line-length = 80
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q --verbosity=1"
+testpaths = ["tests"]
 
 [project.urls]
 Homepage = "https://github.com/marcusfrdk/tomlval"

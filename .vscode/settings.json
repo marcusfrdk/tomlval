@@ -1,5 +1,14 @@
 {
+    "editor.tabSize": 4,
     "python.testing.pytestArgs": ["tests"],
     "python.testing.unittestEnabled": false,
-    "python.testing.pytestEnabled": true
+    "python.testing.pytestEnabled": true,
+    "editor.rulers": [80],
+    "markdownlint.config": {
+        "MD007": false,
+        "MD013": false,
+        "MD030": false,
+        "MD033": false,
+        "MD041": false
+    }
 }
