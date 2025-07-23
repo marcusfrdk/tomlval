@@ -1,6 +1,11 @@
-"""Errors specific to the 'toml_parser' package."""
+"""Initialization file for the tomlval.errors package."""
 
-from tomlval.errors.toml_handler_error import TOMLHandlerError
-from tomlval.errors.toml_schema_error import TOMLSchemaError
-from tomlval.errors.toml_schema_key_error import TOMLSchemaKeyError
-from tomlval.errors.toml_schema_merge_error import TOMLSchemaMergeError
+from tomlval.errors.key_validation_error import TOMLKeyValidationError
+from tomlval.errors.schema_conflict_error import TOMLSchemaConflictError
+from tomlval.errors.schema_validation_error import TOMLSchemaValidationError
+
+__all__ = [
+    "TOMLKeyValidationError",
+    "TOMLSchemaValidationError",
+    "TOMLSchemaConflictError",
+]
