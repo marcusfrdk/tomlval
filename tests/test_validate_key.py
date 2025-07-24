@@ -286,9 +286,17 @@ class TestValidateKey:
 
     def test_wildcard_edge_cases(self):
         """Test wildcard edge cases."""
-        validate_key("*")
-        validate_key("user.*.name")
-        validate_key("*.user.name")
+        validate_key("*")  # Single wildcard is allowed
+        validate_key("user.*.name")  # Wildcard in middle is allowed
+        validate_key(
+            "*.key"
+        )  # Leading wildcard targeting shared key is allowed
+        validate_key("*.user*")  # Wildcard with trailing segment is allowed
+
+        with pytest.raises(
+            TOMLKeyValidationError, match="consecutive wildcard"
+        ):
+            validate_key("*.*")
 
     def test_mixed_quoted_and_bare_in_dotted_keys(self):
         """Test mixed quoted and bare keys in dotted notation."""

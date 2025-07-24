@@ -33,6 +33,7 @@ def validate_key(key: str) -> None:
 
     # Parse dot-notation keys
     key_parts = _parse_dotted_key(key)
+    _validate_wildcard_patterns(key_parts, key)
 
     for part in key_parts:
         if not part:
@@ -40,6 +41,19 @@ def validate_key(key: str) -> None:
                 f"Key '{key}' contains empty segment in dot-notation."
             )
         _validate_key_part(part, key)
+
+
+def _validate_wildcard_patterns(parts: list[str], full_key: str) -> None:
+    """Validate wildcard patterns across dotted key parts."""
+    for i in range(len(parts) - 1):
+        current_part = parts[i]
+        next_part = parts[i + 1]
+
+        if current_part == "*" and next_part == "*":
+            raise TOMLKeyValidationError(
+                f"Key '{full_key}' contains consecutive wildcard segments. "
+                f"Wildcard patterns like '*.*' are not allowed."
+            )
 
 
 def _is_single_quoted_key(key: str) -> bool:
