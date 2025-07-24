@@ -90,6 +90,14 @@ def _validate_schema_recursive(schema: Dict[str, Any], parent_key: str) -> None:
 
 def _validate_schema_value(key: str, value: Any) -> None:
     """Validate a single schema value."""
+    # Wildcard + Optional
+    if isinstance(value, Optional) and key == "*":
+        raise TOMLSchemaValidationError(
+            f"Schema key '{key}' cannot combine catch-all wildcard '*' "
+            f"with Optional. Catch-all wildcards match existing keys, "
+            f"making Optional meaningless."
+        )
+
     # Optional
     if isinstance(value, Optional):
         _validate_schema_value(key, value.value_type)

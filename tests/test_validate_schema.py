@@ -611,14 +611,23 @@ class TestValidateSchema:
     def test_optional_with_wildcard_keys(self):
         """Test optional values with wildcard keys."""
         valid_schemas = [
-            {"*": Optional(str)},
             {"user*": Optional(int)},
+            {"user.*": Optional(bool)},
             {"*.config": Optional(bool)},
             {"config*.value*": Optional(lambda value: True)},
+            {"users": [Optional({"*": str})]},
         ]
 
         for schema in valid_schemas:
             validate_schema(schema)
+
+        invalid_schemas = [
+            {"*": Optional(str)},
+        ]
+
+        for schema in invalid_schemas:
+            with pytest.raises(TOMLSchemaValidationError):
+                validate_schema(schema)
 
     def test_optional_edge_cases(self):
         """Test edge cases for optional values."""
