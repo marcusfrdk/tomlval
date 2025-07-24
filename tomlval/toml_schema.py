@@ -15,6 +15,10 @@ class TOMLSchema:
 
         Args:
             schema (Dict): A dictionary defining the schema.
+        Raises:
+            TOMLSchemaValidationError: If the schema is invalid.
+            TOMLKeyValidationError: If a key in the schema is invalid.
+            TOMLSchemaConflictError: If conflicting keys are found.
         """
         validate_schema(schema)
         self.schema = schema

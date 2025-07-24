@@ -26,10 +26,9 @@ def validate_key(key: str) -> None:
     if _is_single_quoted_key(key):
         if _is_valid_toml_key(key):
             return
-        else:
-            raise TOMLKeyValidationError(
-                f"Key '{key}' is not a valid quoted TOML key."
-            )
+        raise TOMLKeyValidationError(
+            f"Key '{key}' is not a valid quoted TOML key."
+        )
 
     # Parse dot-notation keys
     key_parts = _parse_dotted_key(key)
@@ -250,12 +249,8 @@ def _is_valid_basic_string(content: str) -> bool:
     while i < len(content):
         char = content[i]
 
-        # Control characters (except tab) are not allowed
-        if ord(char) < 0x20 and char != "\t":
-            return False
-
-        # Unescaped quotes
-        if char == '"':
+        # Control characters (except tab) and Unescaped quotes
+        if char == '"' or (ord(char) < 0x20 and char != "\t"):
             return False
 
         # Escape sequences

@@ -150,7 +150,6 @@ class TestValidateSchema:
         """Test invalid array definitions."""
         invalid_schemas = [
             {"key": []},  # Empty array
-            {"key": [int, str]},  # Multiple elements
             {"key": [None]},  # Invalid element type
             {"key": [object]},  # Invalid type
         ]
@@ -420,6 +419,19 @@ class TestValidateSchema:
         for schema in valid_schemas:
             validate_schema(schema)
 
+    def test_valid_mixed_type_arrays(self):
+        """Test schema with valid mixed-type array definitions."""
+        valid_schemas = [
+            {"items": [str, int]},  # Mixed string/int array
+            {"data": [int, float, str]},  # Multiple mixed types
+            {"values": [bool, str, int]},  # Mixed primitives
+            {"mixed_nested": [str, {"name": str}]},  # Mixed primitives and dict
+            {"validators": [str, lambda value: True]},  # Mixed functions
+        ]
+
+        for schema in valid_schemas:
+            validate_schema(schema)
+
     def test_valid_optional_tuples(self):
         """Test schema with optional tuple definitions."""
         valid_schemas = [
@@ -500,7 +512,6 @@ class TestValidateSchema:
         """Test invalid optional array definitions."""
         invalid_schemas = [
             {"key": Optional([])},  # Empty array
-            {"key": Optional([int, str])},  # Multiple elements
             {"key": Optional([None])},  # Invalid element type
             {"key": Optional([object])},  # Invalid type
         ]
