@@ -17,7 +17,6 @@ class TOMLSchema:
             schema (Dict): A dictionary defining the schema.
         """
         validate_schema(schema)
-
         self.schema = schema
 
     def __str__(self) -> str:

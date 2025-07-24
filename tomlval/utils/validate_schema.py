@@ -6,6 +6,7 @@ from re import Pattern, sub
 from typing import Any, Callable, Dict
 
 from tomlval.errors import TOMLSchemaConflictError, TOMLSchemaValidationError
+from tomlval.optional import Optional
 from tomlval.utils.validate_key import validate_key
 
 
@@ -56,6 +57,9 @@ def _collect_all_paths(
 
         all_paths[normalized_path] = full_key
 
+        if isinstance(value, Optional):
+            value = value.value_type
+
         if isinstance(value, dict):
             _collect_all_paths(value, full_key, all_paths)
         elif (
@@ -86,6 +90,11 @@ def _validate_schema_recursive(schema: Dict[str, Any], parent_key: str) -> None:
 
 def _validate_schema_value(key: str, value: Any) -> None:
     """Validate a single schema value."""
+    # Optional
+    if isinstance(value, Optional):
+        _validate_schema_value(key, value.value_type)
+        return
+
     # Primitives
     if _is_primitive_type(value):
         return
@@ -109,6 +118,10 @@ def _validate_schema_value(key: str, value: Any) -> None:
             )
 
         for i, item in enumerate(value):
+            if isinstance(item, Optional):
+                _validate_schema_value(f"{key}[{i}]", item.value_type)
+                continue
+
             if (
                 not _is_primitive_type(item)
                 and not isinstance(item, dict)
@@ -116,7 +129,7 @@ def _validate_schema_value(key: str, value: Any) -> None:
             ):
                 raise TOMLSchemaValidationError(
                     f"Schema key '{key}' tuple item at index {i} "
-                    f"is not a primitive type, table, or function."
+                    f"is not a primitive type, table, function, or Optional."
                 )
             if callable(item) and not isinstance(item, type):
                 _validate_function_signature(f"{key}[{i}]", item)
@@ -131,6 +144,10 @@ def _validate_schema_value(key: str, value: Any) -> None:
             )
 
         array_type = value[0]
+
+        # Optional array
+        if isinstance(array_type, Optional):
+            array_type = array_type.value_type
 
         # Array of primitives
         if _is_primitive_type(array_type):
@@ -148,13 +165,14 @@ def _validate_schema_value(key: str, value: Any) -> None:
 
         raise TOMLSchemaValidationError(
             f"Schema key '{key}' array type must "
-            f"be a primitive type, a nested table (dict), or a function."
+            f"be a primitive type, a nested table (dict), function, "
+            f"or Optional."
         )
 
     raise TOMLSchemaValidationError(
         f"Schema key '{key}' has invalid type '{type(value).__name__}'. "
         f"Must be a primitive type, tuple of primitives, table (dict), "
-        f"function, or array."
+        f"function, array, or Optional."
     )
 
 
@@ -176,7 +194,6 @@ def _validate_function_signature(key: str, func: Callable) -> None:
                 )
             return
         elif param_count == 2:
-            # Must be exactly 'key' and 'value' parameters
             if set(params) != {"key", "value"}:
                 raise TOMLSchemaValidationError(
                     f"Schema key '{key}' function with 2 parameters must have "

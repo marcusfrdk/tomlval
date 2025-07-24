@@ -12,6 +12,7 @@ from tomlval.errors import (
     TOMLSchemaConflictError,
     TOMLSchemaValidationError,
 )
+from tomlval.optional import Optional
 from tomlval.utils.validate_schema import validate_schema
 
 
@@ -348,6 +349,293 @@ class TestValidateSchema:
 
         valid_schemas = [
             {"pattern": re.compile(r"test")},
+        ]
+
+        for schema in valid_schemas:
+            validate_schema(schema)
+
+    def test_valid_optional_primitive_types(self):
+        """Test schema with valid optional primitive types."""
+        valid_schemas = [
+            {"key": Optional(int)},
+            {"key": Optional(float)},
+            {"key": Optional(str)},
+            {"key": Optional(bool)},
+            {"key": Optional(datetime)},
+            {"key": Optional(date)},
+            {"key": Optional(time)},
+            {"key": Optional(re.compile(r"test"))},
+        ]
+
+        for schema in valid_schemas:
+            validate_schema(schema)
+
+    def test_valid_optional_functions(self):
+        """Test schema with optional function validators."""
+
+        def no_params():
+            return True
+
+        def value_param(value):
+            return True
+
+        def key_value_params(key, value):
+            return True
+
+        valid_schemas = [
+            {"key": Optional(no_params)},
+            {"key": Optional(value_param)},
+            {"key": Optional(key_value_params)},
+            {"key": Optional(lambda: True)},
+            {"key": Optional(lambda value: True)},
+            {"key": Optional(lambda key, value: True)},
+        ]
+
+        for schema in valid_schemas:
+            validate_schema(schema)
+
+    def test_valid_optional_nested_dictionaries(self):
+        """Test schema with optional nested dictionaries."""
+        valid_schemas = [
+            {"user": Optional({"name": str, "age": int})},
+            {"config": Optional({"database": {"host": str, "port": int}})},
+            {"nested": {"data": Optional({"value": bool})}},
+            {"app": {"name": str, "config": Optional({"debug": bool})}},
+        ]
+
+        for schema in valid_schemas:
+            validate_schema(schema)
+
+    def test_valid_optional_arrays(self):
+        """Test schema with optional array definitions."""
+        valid_schemas = [
+            {"items": Optional([str])},
+            {"numbers": Optional([int])},
+            {"users": Optional([{"name": str, "age": int}])},
+            {"validators": Optional([lambda value: True])},
+            {"mixed_items": [Optional(str)]},
+            {"optional_users": [Optional({"name": str})]},
+        ]
+
+        for schema in valid_schemas:
+            validate_schema(schema)
+
+    def test_valid_optional_tuples(self):
+        """Test schema with optional tuple definitions."""
+        valid_schemas = [
+            {"value": Optional((int, str))},
+            {"data": Optional((int, float, str, bool))},
+            {"mixed": Optional((str, {"nested": int}, lambda value: True))},
+            {"tuple_with_optional": (str, Optional(int), bool)},
+            {"all_optional": (Optional(str), Optional(int), Optional(bool))},
+        ]
+
+        for schema in valid_schemas:
+            validate_schema(schema)
+
+    def test_nested_optional_values(self):
+        """Test deeply nested optional values."""
+        valid_schemas = [
+            {"config": Optional({"database": Optional({"host": str})})},
+            {"tags": Optional([Optional(str)])},
+            {"mixed": Optional((str, Optional(int), Optional(bool)))},
+            {
+                "users": Optional(
+                    [
+                        Optional(
+                            {
+                                "profile": Optional(
+                                    {
+                                        "email": Optional(str),
+                                        "preferences": Optional(
+                                            [Optional(str)]
+                                        ),
+                                    }
+                                )
+                            }
+                        )
+                    ]
+                )
+            },
+        ]
+
+        for schema in valid_schemas:
+            validate_schema(schema)
+
+    def test_optional_with_defaults(self):
+        """Test optional values with default values."""
+        valid_schemas = [
+            {"port": Optional(int, default=8080)},
+            {"debug": Optional(bool, default=False)},
+            {"name": Optional(str, default="anonymous")},
+            {"config": Optional({"timeout": int}, default={"timeout": 30})},
+            {"tags": Optional([str], default=[])},
+            {"mixed": Optional((str, int), default=("default", 0))},
+        ]
+
+        for schema in valid_schemas:
+            validate_schema(schema)
+
+    def test_invalid_optional_function_signatures(self):
+        """Test optional functions with invalid signatures."""
+
+        def invalid_param_name(invalid_name):
+            return True
+
+        def too_many_params(a, b, c):
+            return True
+
+        invalid_schemas = [
+            {"key": Optional(invalid_param_name)},
+            {"key": Optional(too_many_params)},
+            {"key": Optional(lambda invalid: True)},
+            {"key": Optional(lambda a, b, c: True)},
+        ]
+
+        for schema in invalid_schemas:
+            with pytest.raises(TOMLSchemaValidationError):
+                validate_schema(schema)
+
+    def test_invalid_optional_array_definitions(self):
+        """Test invalid optional array definitions."""
+        invalid_schemas = [
+            {"key": Optional([])},  # Empty array
+            {"key": Optional([int, str])},  # Multiple elements
+            {"key": Optional([None])},  # Invalid element type
+            {"key": Optional([object])},  # Invalid type
+        ]
+
+        for schema in invalid_schemas:
+            with pytest.raises(TOMLSchemaValidationError):
+                validate_schema(schema)
+
+    def test_invalid_optional_tuple_definitions(self):
+        """Test invalid optional tuple definitions."""
+        invalid_schemas = [
+            {"key": Optional(())},  # Empty tuple
+            {"key": Optional((None,))},  # Invalid element type
+            {"key": Optional((object,))},  # Invalid type
+            {"key": Optional((int, None, str))},  # Invalid element in middle
+        ]
+
+        for schema in invalid_schemas:
+            with pytest.raises(TOMLSchemaValidationError):
+                validate_schema(schema)
+
+    def test_invalid_optional_value_types(self):
+        """Test optional schemas with invalid wrapped value types."""
+        invalid_schemas = [
+            {"key": Optional(None)},
+            {"key": Optional(object())},
+            {"key": Optional(Exception)},
+            {"key": Optional(set())},
+            {"key": Optional(complex(1, 2))},
+        ]
+
+        for schema in invalid_schemas:
+            with pytest.raises(TOMLSchemaValidationError):
+                validate_schema(schema)
+
+    def test_optional_schema_conflicts(self):
+        """Test detection of conflicting schema paths with optional values."""
+        conflicting_schemas = [
+            {"user": Optional({"name": str}), "user.name": str},
+            {"items": Optional([str]), "items[0]": str},
+            {"data.value": Optional(str), "data": Optional({"value": int})},
+        ]
+
+        for schema in conflicting_schemas:
+            with pytest.raises(TOMLSchemaConflictError):
+                validate_schema(schema)
+
+    def test_complex_optional_schema(self):
+        """Test a complex schema with mixed optional and required values."""
+
+        def validate_email(value):
+            return "@" in value
+
+        def validate_port(value):
+            return 1 <= value <= 65535
+
+        schema = {
+            "app": {
+                "name": str,
+                "version": str,
+                "debug": Optional(bool, default=False),
+                "features": Optional([str], default=[]),
+            },
+            "database": {
+                "host": str,
+                "port": Optional(int, default=5432),
+                "ssl": Optional(bool, default=True),
+                "credentials": Optional(
+                    {
+                        "username": str,
+                        "password": str,
+                        "timeout": Optional(int, default=30),
+                    }
+                ),
+            },
+            "users": Optional(
+                [
+                    {
+                        "name": str,
+                        "email": validate_email,
+                        "age": Optional(int),
+                        "roles": Optional([str], default=["user"]),
+                        "preferences": Optional(
+                            {
+                                "theme": Optional(str, default="light"),
+                                "notifications": Optional(bool, default=True),
+                            }
+                        ),
+                    }
+                ],
+                default=[],
+            ),
+            "monitoring": Optional(
+                {
+                    "enabled": bool,
+                    "endpoints": Optional([str]),
+                    "alerts": Optional((str, validate_port, Optional(bool))),
+                }
+            ),
+            "wildcards": {
+                "*": Optional(str),
+                "config*": Optional(lambda value: len(value) > 0),
+            },
+        }
+
+        validate_schema(schema)
+
+    def test_optional_with_wildcard_keys(self):
+        """Test optional values with wildcard keys."""
+        valid_schemas = [
+            {"*": Optional(str)},
+            {"user*": Optional(int)},
+            {"*.config": Optional(bool)},
+            {"config*.value*": Optional(lambda value: True)},
+        ]
+
+        for schema in valid_schemas:
+            validate_schema(schema)
+
+    def test_optional_edge_cases(self):
+        """Test edge cases for optional values."""
+        valid_schemas = [
+            {"pattern": Optional(re.compile(r"\d+"))},
+            {"timestamp": Optional(datetime)},
+            {"date": Optional(date)},
+            {"time": Optional(time)},
+            {
+                "level1": Optional(
+                    {
+                        "level2": Optional(
+                            {"level3": Optional({"value": Optional(str)})}
+                        )
+                    }
+                )
+            },
         ]
 
         for schema in valid_schemas:
