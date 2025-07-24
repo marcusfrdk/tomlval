@@ -6,7 +6,7 @@ from re import Pattern, sub
 from typing import Any, Callable, Dict
 
 from tomlval.errors import TOMLSchemaConflictError, TOMLSchemaValidationError
-from tomlval.optional import Optional
+from tomlval.types import Invalid, Optional
 from tomlval.utils.validate_key import validate_key
 
 
@@ -59,6 +59,8 @@ def _collect_all_paths(
 
         if isinstance(value, Optional):
             value = value.value_type
+        elif isinstance(value, Invalid):
+            continue
 
         if isinstance(value, dict):
             _collect_all_paths(value, full_key, all_paths)
@@ -90,7 +92,11 @@ def _validate_schema_recursive(schema: Dict[str, Any], parent_key: str) -> None:
 
 def _validate_schema_value(key: str, value: Any) -> None:
     """Validate a single schema value."""
-    # Wildcard + Optional
+    # Invalid
+    if isinstance(value, Invalid) or value is Invalid:
+        return
+
+    # Wildcard + Optional check
     if isinstance(value, Optional) and key == "*":
         raise TOMLSchemaValidationError(
             f"Schema key '{key}' cannot combine catch-all wildcard '*' "
@@ -100,6 +106,11 @@ def _validate_schema_value(key: str, value: Any) -> None:
 
     # Optional
     if isinstance(value, Optional):
+        if isinstance(value.value_type, Invalid) or value.value_type is Invalid:
+            raise TOMLSchemaValidationError(
+                f"Schema key '{key}' cannot wrap Invalid type with Optional. "
+                f"Use Invalid directly instead."
+            )
         _validate_schema_value(key, value.value_type)
         return
 
@@ -126,6 +137,13 @@ def _validate_schema_value(key: str, value: Any) -> None:
             )
 
         for i, item in enumerate(value):
+            if isinstance(item, Invalid) or item is Invalid:
+                raise TOMLSchemaValidationError(
+                    f"Schema key '{key}' tuple cannot contain Invalid type. "
+                    f"Invalid should be used at the key level, "
+                    f"not within tuples."
+                )
+
             if isinstance(item, Optional):
                 _validate_schema_value(f"{key}[{i}]", item.value_type)
                 continue
@@ -152,6 +170,13 @@ def _validate_schema_value(key: str, value: Any) -> None:
             )
 
         array_type = value[0]
+
+        # Check for Invalid in array
+        if isinstance(array_type, Invalid) or array_type is Invalid:
+            raise TOMLSchemaValidationError(
+                f"Schema key '{key}' array cannot contain Invalid type. "
+                f"Invalid should be used at the key level, not within arrays."
+            )
 
         # Optional array
         if isinstance(array_type, Optional):
@@ -180,7 +205,7 @@ def _validate_schema_value(key: str, value: Any) -> None:
     raise TOMLSchemaValidationError(
         f"Schema key '{key}' has invalid type '{type(value).__name__}'. "
         f"Must be a primitive type, tuple of primitives, table (dict), "
-        f"function, array, or Optional."
+        f"function, array, Optional, or Invalid."
     )
 
 

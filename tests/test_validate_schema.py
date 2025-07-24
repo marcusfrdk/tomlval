@@ -7,12 +7,12 @@ from datetime import date, datetime, time
 
 import pytest
 
+from tomlval import Invalid, Optional
 from tomlval.errors import (
     TOMLKeyValidationError,
     TOMLSchemaConflictError,
     TOMLSchemaValidationError,
 )
-from tomlval.optional import Optional
 from tomlval.utils.validate_schema import validate_schema
 
 
@@ -465,12 +465,12 @@ class TestValidateSchema:
     def test_optional_with_defaults(self):
         """Test optional values with default values."""
         valid_schemas = [
-            {"port": Optional(int, default=8080)},
-            {"debug": Optional(bool, default=False)},
-            {"name": Optional(str, default="anonymous")},
-            {"config": Optional({"timeout": int}, default={"timeout": 30})},
-            {"tags": Optional([str], default=[])},
-            {"mixed": Optional((str, int), default=("default", 0))},
+            {"port": Optional(int)},
+            {"debug": Optional(bool)},
+            {"name": Optional(str)},
+            {"config": Optional({"timeout": int})},
+            {"tags": Optional([str])},
+            {"mixed": Optional((str, int))},
         ]
 
         for schema in valid_schemas:
@@ -561,18 +561,18 @@ class TestValidateSchema:
             "app": {
                 "name": str,
                 "version": str,
-                "debug": Optional(bool, default=False),
-                "features": Optional([str], default=[]),
+                "debug": Optional(bool),
+                "features": Optional([str]),
             },
             "database": {
                 "host": str,
-                "port": Optional(int, default=5432),
-                "ssl": Optional(bool, default=True),
+                "port": Optional(int),
+                "ssl": Optional(bool),
                 "credentials": Optional(
                     {
                         "username": str,
                         "password": str,
-                        "timeout": Optional(int, default=30),
+                        "timeout": Optional(int),
                     }
                 ),
             },
@@ -582,16 +582,17 @@ class TestValidateSchema:
                         "name": str,
                         "email": validate_email,
                         "age": Optional(int),
-                        "roles": Optional([str], default=["user"]),
+                        "roles": Optional(
+                            [str],
+                        ),
                         "preferences": Optional(
                             {
-                                "theme": Optional(str, default="light"),
-                                "notifications": Optional(bool, default=True),
+                                "theme": Optional(str),
+                                "notifications": Optional(bool),
                             }
                         ),
                     }
-                ],
-                default=[],
+                ]
             ),
             "monitoring": Optional(
                 {
@@ -645,6 +646,194 @@ class TestValidateSchema:
                     }
                 )
             },
+        ]
+
+        for schema in valid_schemas:
+            validate_schema(schema)
+
+    def test_valid_invalid_type(self):
+        """Test schema with valid Invalid type usage."""
+
+        valid_schemas = [
+            {"key": Invalid},  # Invalid class directly
+            {"key": Invalid()},  # Invalid instance
+            {"*": Invalid},  # Catch-all with Invalid class
+            {"*": Invalid()},  # Catch-all with Invalid instance
+            {"user*": Invalid},  # Wildcard with Invalid class
+            {"*.config": Invalid()},  # Dotted wildcard with Invalid instance
+            {"data.field": Invalid},  # Nested key with Invalid
+        ]
+
+        for schema in valid_schemas:
+            validate_schema(schema)
+
+    def test_invalid_invalid_in_arrays(self):
+        """Test that Invalid cannot be used in arrays."""
+
+        invalid_schemas = [
+            {"key": [Invalid]},  # Invalid class in array
+            {"key": [Invalid()]},  # Invalid instance in array
+            {"items": [Invalid]},  # Array containing Invalid class
+            {"data": [Invalid()]},  # Array containing Invalid instance
+        ]
+
+        for schema in invalid_schemas:
+            with pytest.raises(
+                TOMLSchemaValidationError,
+                match="array cannot contain Invalid type",
+            ):
+                validate_schema(schema)
+
+    def test_invalid_invalid_in_tuples(self):
+        """Test that Invalid cannot be used in tuples."""
+
+        invalid_schemas = [
+            {"key": (Invalid,)},  # Invalid class in tuple
+            {"key": (Invalid(),)},  # Invalid instance in tuple
+            {"key": (str, Invalid)},  # Invalid class with other types
+            {"key": (int, Invalid(), str)},  # Invalid instance with other types
+            {"mixed": (str, Invalid, bool)},  # Invalid class in mixed tuple
+        ]
+
+        for schema in invalid_schemas:
+            with pytest.raises(
+                TOMLSchemaValidationError,
+                match="tuple cannot contain Invalid type",
+            ):
+                validate_schema(schema)
+
+    def test_invalid_optional_wrapping_invalid(self):
+        """Test that Optional cannot wrap Invalid type."""
+
+        invalid_schemas = [
+            {"key": Optional(Invalid)},  # Optional wrapping Invalid class
+            {"key": Optional(Invalid())},  # Optional wrapping Invalid instance
+            {"data": Optional(Invalid)},  # Another case with class
+            {"field": Optional(Invalid())},  # Another case with instance
+        ]
+
+        for schema in invalid_schemas:
+            with pytest.raises(
+                TOMLSchemaValidationError,
+                match="cannot wrap Invalid type with Optional",
+            ):
+                validate_schema(schema)
+
+    def test_invalid_with_nested_structures(self):
+        """Test Invalid in various nested structures."""
+
+        valid_schemas = [
+            {
+                "app": {
+                    "name": str,
+                    "legacy_field": Invalid,
+                }
+            },
+            {
+                "config": {
+                    "database": {
+                        "deprecated_option": Invalid(),
+                    }
+                }
+            },
+            {
+                "users": [
+                    {
+                        "name": str,
+                        "old_field": Invalid,
+                    }
+                ]
+            },
+        ]
+
+        for schema in valid_schemas:
+            validate_schema(schema)
+
+    def test_invalid_edge_cases(self):
+        """Test edge cases for Invalid type."""
+        valid_schemas = [
+            {"": Invalid},  # Empty key with Invalid (if allowed)
+            {"user.name": Invalid},  # Dotted key with Invalid
+            {"items[0]": Invalid},  # Array notation with Invalid
+            {"*_deprecated": Invalid()},  # Wildcard pattern with Invalid
+        ]
+
+        for schema in valid_schemas:
+            try:
+                validate_schema(schema)
+            except TOMLKeyValidationError:
+                pass
+
+    def test_invalid_class_vs_instance_equivalence(self):
+        """
+        Test that Invalid class and Invalid()
+        instance are treated equivalently.
+        """
+
+        schema_with_class = {"deprecated": Invalid}
+        schema_with_instance = {"deprecated": Invalid()}
+
+        validate_schema(schema_with_class)  # Should not raise
+        validate_schema(schema_with_instance)  # Should not raise
+
+        invalid_schemas = [
+            {"key": [Invalid]},  # Class in array
+            {"key": [Invalid()]},  # Instance in array
+            {"key": (Invalid,)},  # Class in tuple
+            {"key": (Invalid(),)},  # Instance in tuple
+        ]
+
+        for schema in invalid_schemas:
+            with pytest.raises(TOMLSchemaValidationError):
+                validate_schema(schema)
+
+    def test_mixed_invalid_and_valid_types(self):
+        """Test schemas mixing Invalid with other valid types."""
+
+        valid_schemas = [
+            {
+                "name": str,
+                "age": int,
+                "deprecated_field": Invalid,
+                "optional_field": Optional(str),
+            },
+            {
+                "app": {
+                    "version": str,
+                    "old_config": Invalid(),
+                },
+                "database": {
+                    "host": str,
+                    "port": int,
+                },
+            },
+            {
+                "users": [
+                    {
+                        "name": str,
+                        "legacy_id": Invalid,
+                    }
+                ],
+                "settings": {
+                    "theme": str,
+                    "deprecated_setting": Invalid(),
+                },
+            },
+        ]
+
+        for schema in valid_schemas:
+            validate_schema(schema)
+
+    def test_invalid_in_complex_wildcard_patterns(self):
+        """Test Invalid with complex wildcard patterns."""
+
+        valid_schemas = [
+            {"*": Invalid},  # Catch-all wildcard
+            {"user*": Invalid()},  # Prefix wildcard
+            {"*_deprecated": Invalid},  # Suffix wildcard
+            {"config*.old*": Invalid()},  # Multiple wildcards
+            {"*.legacy": Invalid},  # Dotted wildcard
+            {"data*.old*.field": Invalid()},  # Complex dotted wildcard
         ]
 
         for schema in valid_schemas:
