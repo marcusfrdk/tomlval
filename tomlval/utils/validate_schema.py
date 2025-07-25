@@ -103,7 +103,15 @@ def _validate_schema_value(key: str, value: Any) -> None:
             _validate_literal_value(key, value)
         return
 
-    # Optional
+    # Optional class
+    if value is Optional:
+        raise TOMLSchemaValidationError(
+            f"Schema key '{key}' uses Optional class directly. "
+            f"Optional must wrap a type, e.g., Optional(str), Optional(int), "
+            f"etc."
+        )
+
+    # Optional instance
     if isinstance(value, Optional):
         _validate_optional_value(key, value)
         return

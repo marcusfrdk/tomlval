@@ -13,7 +13,6 @@ from tomlval.toml_error import (
     INVALID_ARRAY_ELEMENT,
     INVALID_KEY,
     INVALID_LITERAL_VALUE,
-    INVALID_TUPLE_TYPE,
     INVALID_TYPE,
     MISSING_KEY,
     REGEX_MISMATCH,
@@ -204,6 +203,12 @@ class DataValidator:
 
     def _validate_schema_key(self, schema_key: str, schema_value: Any) -> None:
         """Validate a specific schema key against data."""
+        if isinstance(schema_value, Invalid) or schema_value is Invalid:
+            if schema_key in self.data:
+                self.errors[schema_key] = TOMLError(INVALID_KEY)
+            self.applied_keys.add(schema_key)
+            return
+
         if "." in schema_key and not self._is_quoted_key(schema_key):
             self._validate_dotted_key(schema_key, schema_value)
         elif "[" in schema_key and "]" in schema_key:
@@ -219,6 +224,28 @@ class DataValidator:
 
     def _validate_dotted_key(self, schema_key: str, schema_value: Any) -> None:
         """Validate dotted notation keys like 'user.name'."""
+        if isinstance(schema_value, Invalid) or schema_value is Invalid:
+            parts = schema_key.split(".")
+            current_data = self.data
+
+            for part in parts[:-1]:
+                if (
+                    not isinstance(current_data, dict)
+                    or part not in current_data
+                ):
+                    if parts[0] in self.data:
+                        self.applied_keys.add(parts[0])
+                    return
+                current_data = current_data[part]
+
+            final_key = parts[-1]
+            if final_key in current_data:
+                self.errors[schema_key] = TOMLError(INVALID_KEY)
+
+            if parts[0] in self.data:
+                self.applied_keys.add(parts[0])
+            return
+
         parts = schema_key.split(".")
         current_data = self.data
 
@@ -243,6 +270,29 @@ class DataValidator:
         self, schema_key: str, schema_value: Any
     ) -> None:
         """Validate array notation keys like 'users[0]'."""
+        if isinstance(schema_value, Invalid) or schema_value is Invalid:
+            bracket_pos = schema_key.find("[")
+            array_key = schema_key[:bracket_pos]
+            index_part = schema_key[bracket_pos + 1 : -1]
+
+            if array_key not in self.data:
+                return
+
+            array_data = self.data[array_key]
+            if not isinstance(array_data, list):
+                self.applied_keys.add(array_key)
+                return
+
+            try:
+                index = int(index_part)
+                if 0 <= index < len(array_data):
+                    self.errors[schema_key] = TOMLError(INVALID_KEY)
+            except ValueError:
+                pass
+
+            self.applied_keys.add(array_key)
+            return
+
         bracket_pos = schema_key.find("[")
         array_key = schema_key[:bracket_pos]
         index_part = schema_key[bracket_pos + 1 : -1]
@@ -559,7 +609,7 @@ class DataValidator:
                 continue
 
         if not valid_type_found:
-            self.errors[key_path] = TOMLError(INVALID_TUPLE_TYPE)
+            self.errors[key_path] = TOMLError(INVALID_TYPE)
 
     def _find_matching_keys(self, pattern: str) -> List[str]:
         """Find data keys that match a wildcard pattern."""

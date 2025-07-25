@@ -1,19 +1,17 @@
 """Literal type for TOML values."""
 
-from typing import List, Union
-
 
 class Literal:
     """Represents a literal value in a TOML schema."""
 
-    def __init__(self, value_type: Union[str, List[str]]) -> None:
+    def __init__(self, *values: str) -> None:
         """
         Initialize the Literal type.
 
         Args:
             value_type: The type or validator for the literal value
         """
-        self.value_type = value_type
+        self.value_type = values[0] if len(values) == 1 else list(values)
 
     def __str__(self) -> str:
         if isinstance(self.value_type, list):

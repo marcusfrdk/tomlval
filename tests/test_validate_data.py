@@ -11,7 +11,6 @@ from tomlval.toml_error import (
     FUNCTION_EXECUTION_ERROR,
     INVALID_ARRAY_ELEMENT,
     INVALID_KEY,
-    INVALID_TUPLE_TYPE,
     INVALID_TYPE,
     MISSING_KEY,
     REGEX_MISMATCH,
@@ -570,7 +569,7 @@ class TestTupleValidation:
 
         errors = validate_data(data, schema)
 
-        assert errors == {"value": TOMLError(INVALID_TUPLE_TYPE)}
+        assert errors == {"value": TOMLError(INVALID_TYPE)}
 
     def test_complex_tuple_with_functions(self):
         """Test tuple with functions and types."""
@@ -591,7 +590,7 @@ class TestTupleValidation:
 
         errors = validate_data(data, schema)
 
-        assert errors == {"value": TOMLError(INVALID_TUPLE_TYPE)}
+        assert errors == {"value": TOMLError(INVALID_TYPE)}
 
     def test_tuple_function_success(self):
         """Test tuple where function validates successfully."""
