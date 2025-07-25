@@ -3,7 +3,7 @@
 import inspect
 import re
 from datetime import date, datetime, time
-from typing import Any, Callable, Dict, List, Tuple
+from typing import Any, Callable, Dict, List, Tuple, Union
 
 from tomlval.enums import ValidationErrorCode
 from tomlval.toml_schema import TOMLSchema
@@ -77,7 +77,7 @@ class DataValidator:
 
     def __init__(
         self,
-        data: Dict[str, Any],
+        data: Union[Any, Dict[str, Any]],
         schema: Dict[str, Any],
         errors: Dict[str, ValidationErrorCode],
     ):
@@ -122,6 +122,10 @@ class DataValidator:
                         data_key, self._get_nested_value(data_key), schema_value
                     )
                     self.applied_keys.add(data_key)
+
+                    if "." in data_key:
+                        parent_key = data_key.split(".")[0]
+                        self.applied_keys.add(parent_key)
 
     def _validate_catch_all(self) -> None:
         """Validate remaining keys with catch-all wildcard '*'."""
@@ -356,6 +360,7 @@ class DataValidator:
     ) -> None:
         """Validate an element against multiple allowed types."""
         valid_type_found = False
+        nested_errors_found = False
         sorted_types = sorted(
             allowed_types, key=lambda t: t == bool, reverse=True
         )
@@ -377,22 +382,24 @@ class DataValidator:
 
                 temp_errors = {}
                 temp_validator = DataValidator(
-                    {key_path: element_value},
-                    {key_path: allowed_type},
+                    element_value,
+                    allowed_type,
                     temp_errors,
                 )
-                temp_validator.validate_data_value(
-                    key_path, element_value, allowed_type
-                )
+                temp_validator.validate()
 
                 if not temp_errors:
                     valid_type_found = True
                     break
+                for error_key, error_code in temp_errors.items():
+                    full_error_key = f"{key_path}.{error_key}"
+                    self.errors[full_error_key] = error_code
+                    nested_errors_found = True
 
             except Exception:
                 continue
 
-        if not valid_type_found:
+        if not valid_type_found and not nested_errors_found:
             self.errors[key_path] = ValidationErrorCode.INVALID_ARRAY_ELEMENT
 
     def _validate_tuple_types(
