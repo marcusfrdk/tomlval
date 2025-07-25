@@ -3,26 +3,30 @@
 import inspect
 import re
 from datetime import date, datetime, time
-from typing import Any, Callable, Dict, List, Literal, Tuple, Union, overload
+from typing import Any, Callable, Dict, List
+from typing import Literal as TypingLiteral
+from typing import Tuple, Union, overload
 
-from tomlval.errors.error_codes import (
+from tomlval.toml_error import (
     DATETIME_PARSE_ERROR,
     FUNCTION_EXECUTION_ERROR,
     INVALID_ARRAY_ELEMENT,
     INVALID_KEY,
+    INVALID_LITERAL_VALUE,
     INVALID_TUPLE_TYPE,
     INVALID_TYPE,
     MISSING_KEY,
     REGEX_MISMATCH,
     UNKNOWN_ERROR,
     VALIDATION_FAILURE,
+    TOMLError,
 )
 from tomlval.toml_schema import TOMLSchema
-from tomlval.types import Invalid, Optional
+from tomlval.types import Invalid, Literal, Optional
 from tomlval.utils.to_dict import to_dict
 
 NestedDict = Dict[str, Any]
-FlatDict = Dict[str, str]
+FlatDict = Dict[str, TOMLError]
 
 
 @overload
@@ -31,13 +35,16 @@ def validate_data(data: Dict[str, Any], schema: TOMLSchema) -> FlatDict: ...
 
 @overload
 def validate_data(
-    data: Dict[str, Any], schema: TOMLSchema, *, as_dict: Literal[True]
+    data: Dict[str, Any], schema: TOMLSchema, *, as_dict: TypingLiteral[True]
 ) -> NestedDict: ...
 
 
 @overload
 def validate_data(
-    data: Dict[str, Any], schema: TOMLSchema, *, as_dict: Literal[False] = False
+    data: Dict[str, Any],
+    schema: TOMLSchema,
+    *,
+    as_dict: TypingLiteral[False] = False,
 ) -> FlatDict: ...
 
 
@@ -50,9 +57,9 @@ def validate_data(data, schema, *, as_dict=False):
         schema (TOMLSchema): The schema against which to validate the data.
 
     Returns:
-        Dict[str, str]: A dictionary containing validation
+        Dict[str, TOMLError]: A dictionary containing validation
             errors, if any. The keys are the data paths and the values are
-            the error codes.
+            TOMLError instances.
 
     Raises:
         TypeError: If the data is not a dictionary or if the schema
@@ -110,7 +117,7 @@ class DataValidator:
         self,
         data: Union[Any, Dict[str, Any]],
         schema: Dict[str, Any],
-        errors: Dict[str, str],
+        errors: Dict[str, TOMLError],
     ):
         self.data = data
         self.schema = schema
@@ -123,7 +130,7 @@ class DataValidator:
         self._validate_wildcard_patterns()
         self._validate_catch_all()
 
-    def get_errors(self) -> Dict[str, str]:
+    def get_errors(self) -> Dict[str, TOMLError]:
         """Public method to get validation errors."""
         return self.errors.copy()
 
@@ -168,7 +175,7 @@ class DataValidator:
                         isinstance(catch_all_schema, Invalid)
                         or catch_all_schema is Invalid
                     ):
-                        self.errors[data_key] = INVALID_KEY
+                        self.errors[data_key] = TOMLError(INVALID_KEY)
                     else:
                         self.validate_data_value(
                             data_key, data_value, catch_all_schema
@@ -188,7 +195,7 @@ class DataValidator:
                 )
                 self.applied_keys.add(schema_key)
             elif not self._is_optional(schema_value):
-                self.errors[schema_key] = MISSING_KEY
+                self.errors[schema_key] = TOMLError(MISSING_KEY)
 
     def _validate_dotted_key(self, schema_key: str, schema_value: Any) -> None:
         """Validate dotted notation keys like 'user.name'."""
@@ -198,7 +205,7 @@ class DataValidator:
         for part in parts[:-1]:
             if not isinstance(current_data, dict) or part not in current_data:
                 if not self._is_optional(schema_value):
-                    self.errors[schema_key] = MISSING_KEY
+                    self.errors[schema_key] = TOMLError(MISSING_KEY)
                 return
             current_data = current_data[part]
 
@@ -210,7 +217,7 @@ class DataValidator:
             if parts[0] in self.data:
                 self.applied_keys.add(parts[0])
         elif not self._is_optional(schema_value):
-            self.errors[schema_key] = MISSING_KEY
+            self.errors[schema_key] = TOMLError(MISSING_KEY)
 
     def _validate_array_notation_key(
         self, schema_key: str, schema_value: Any
@@ -222,12 +229,12 @@ class DataValidator:
 
         if array_key not in self.data:
             if not self._is_optional(schema_value):
-                self.errors[schema_key] = MISSING_KEY
+                self.errors[schema_key] = TOMLError(MISSING_KEY)
             return
 
         array_data = self.data[array_key]
         if not isinstance(array_data, list):
-            self.errors[schema_key] = INVALID_TYPE
+            self.errors[schema_key] = TOMLError(INVALID_TYPE)
             return
 
         try:
@@ -237,9 +244,9 @@ class DataValidator:
                     schema_key, array_data[index], schema_value
                 )
             elif not self._is_optional(schema_value):
-                self.errors[schema_key] = MISSING_KEY
+                self.errors[schema_key] = TOMLError(MISSING_KEY)
         except ValueError:
-            self.errors[schema_key] = INVALID_TYPE
+            self.errors[schema_key] = TOMLError(INVALID_TYPE)
 
         self.applied_keys.add(array_key)
 
@@ -248,7 +255,7 @@ class DataValidator:
     ) -> None:
         """Validate a data value against its schema definition."""
         if isinstance(schema_value, Invalid) or schema_value is Invalid:
-            self.errors[key_path] = INVALID_KEY
+            self.errors[key_path] = TOMLError(INVALID_KEY)
             return
 
         if isinstance(schema_value, Optional):
@@ -263,6 +270,8 @@ class DataValidator:
                 key_path, data_value, schema_value
             ):
                 return
+            if self._validate_literal_types(key_path, data_value, schema_value):
+                return
             if self._validate_regex_pattern(key_path, data_value, schema_value):
                 return
             if self._validate_callable(key_path, data_value, schema_value):
@@ -274,18 +283,28 @@ class DataValidator:
             if self._validate_tuple(key_path, data_value, schema_value):
                 return
 
-            self.errors[key_path] = UNKNOWN_ERROR
+            self.errors[key_path] = TOMLError(UNKNOWN_ERROR)
 
         except Exception:
-            self.errors[key_path] = FUNCTION_EXECUTION_ERROR
+            self.errors[key_path] = TOMLError(FUNCTION_EXECUTION_ERROR)
 
     def _validate_primitive_types(
         self, key_path: str, data_value: Any, schema_value: Any
     ) -> bool:
         """Validate primitive types. Returns True if handled."""
         if schema_value in (int, float, str, bool):
-            if not isinstance(data_value, schema_value):
-                self.errors[key_path] = INVALID_TYPE
+            if schema_value is int and isinstance(data_value, bool):
+                self.errors[key_path] = TOMLError(INVALID_TYPE)
+            elif schema_value is bool and not isinstance(data_value, bool):
+                self.errors[key_path] = TOMLError(INVALID_TYPE)
+            elif (
+                schema_value is not int
+                and schema_value is not bool
+                and not isinstance(data_value, schema_value)
+            ):
+                self.errors[key_path] = TOMLError(INVALID_TYPE)
+            elif schema_value is int and not isinstance(data_value, int):
+                self.errors[key_path] = TOMLError(INVALID_TYPE)
             return True
         return False
 
@@ -295,7 +314,25 @@ class DataValidator:
         """Validate datetime types. Returns True if handled."""
         if schema_value in (datetime, date, time):
             if not isinstance(data_value, schema_value):
-                self.errors[key_path] = DATETIME_PARSE_ERROR
+                self.errors[key_path] = TOMLError(DATETIME_PARSE_ERROR)
+            return True
+        return False
+
+    def _validate_literal_types(
+        self, key_path: str, data_value: Any, schema_value: Any
+    ) -> bool:
+        """Validate literal types. Returns True if handled."""
+        if isinstance(schema_value, Literal):
+            if not isinstance(data_value, str):
+                self.errors[key_path] = TOMLError(INVALID_TYPE)
+                return True
+
+            allowed_values = schema_value.value_type
+            if isinstance(allowed_values, str):
+                allowed_values = [allowed_values]
+
+            if data_value not in allowed_values:
+                self.errors[key_path] = TOMLError(INVALID_LITERAL_VALUE)
             return True
         return False
 
@@ -305,9 +342,9 @@ class DataValidator:
         """Validate regex patterns. Returns True if handled."""
         if isinstance(schema_value, re.Pattern):
             if not isinstance(data_value, str):
-                self.errors[key_path] = INVALID_TYPE
+                self.errors[key_path] = TOMLError(INVALID_TYPE)
             elif not schema_value.match(data_value):
-                self.errors[key_path] = REGEX_MISMATCH
+                self.errors[key_path] = TOMLError(REGEX_MISMATCH)
             return True
         return False
 
@@ -321,9 +358,9 @@ class DataValidator:
                     key_path, data_value, schema_value
                 )
                 if not result:
-                    self.errors[key_path] = VALIDATION_FAILURE
+                    self.errors[key_path] = TOMLError(VALIDATION_FAILURE)
             except Exception:
-                self.errors[key_path] = FUNCTION_EXECUTION_ERROR
+                self.errors[key_path] = TOMLError(FUNCTION_EXECUTION_ERROR)
             return True
         return False
 
@@ -333,7 +370,7 @@ class DataValidator:
         """Validate nested dictionaries. Returns True if handled."""
         if isinstance(schema_value, dict):
             if not isinstance(data_value, dict):
-                self.errors[key_path] = INVALID_TYPE
+                self.errors[key_path] = TOMLError(INVALID_TYPE)
             else:
                 nested_validator = DataValidator(
                     data_value, schema_value, self.errors
@@ -348,7 +385,7 @@ class DataValidator:
         """Validate arrays. Returns True if handled."""
         if isinstance(schema_value, list):
             if not isinstance(data_value, list):
-                self.errors[key_path] = INVALID_TYPE
+                self.errors[key_path] = TOMLError(INVALID_TYPE)
             else:
                 self._validate_array_elements(
                     key_path, data_value, schema_value
@@ -401,10 +438,13 @@ class DataValidator:
                         ):
                             valid_type_found = True
                             break
-                    else:
-                        if isinstance(element_value, allowed_type):
+                    elif allowed_type == bool:
+                        if isinstance(element_value, bool):
                             valid_type_found = True
                             break
+                    elif isinstance(element_value, allowed_type):
+                        valid_type_found = True
+                        break
                     continue
 
                 temp_errors = {}
@@ -427,7 +467,7 @@ class DataValidator:
                 continue
 
         if not valid_type_found and not nested_errors_found:
-            self.errors[key_path] = INVALID_ARRAY_ELEMENT
+            self.errors[key_path] = TOMLError(INVALID_ARRAY_ELEMENT)
 
     def _validate_tuple_types(
         self, key_path: str, data_value: Any, tuple_schema: Tuple
@@ -453,7 +493,7 @@ class DataValidator:
                 continue
 
         if not valid_type_found:
-            self.errors[key_path] = INVALID_TUPLE_TYPE
+            self.errors[key_path] = TOMLError(INVALID_TUPLE_TYPE)
 
     def _find_matching_keys(self, pattern: str) -> List[str]:
         """Find data keys that match a wildcard pattern."""

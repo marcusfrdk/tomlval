@@ -2,12 +2,13 @@
 
 import pytest
 
-from tomlval.errors.error_codes import (
+from tomlval.toml_error import (
     INVALID_ARRAY_ELEMENT,
     INVALID_TYPE,
     MISSING_KEY,
     REGEX_MISMATCH,
     VALIDATION_FAILURE,
+    TOMLError,
 )
 from tomlval.utils.to_dict import _parse_key_path, _set_nested_value, to_dict
 
@@ -23,14 +24,14 @@ class TestToDict:
     def test_simple_keys(self):
         """Test with simple flat keys (no nesting)."""
         flat_errors = {
-            "name": INVALID_TYPE,
-            "age": MISSING_KEY,
-            "active": VALIDATION_FAILURE,
+            "name": TOMLError(INVALID_TYPE),
+            "age": TOMLError(MISSING_KEY),
+            "active": TOMLError(VALIDATION_FAILURE),
         }
         expected = {
-            "name": INVALID_TYPE,
-            "age": MISSING_KEY,
-            "active": VALIDATION_FAILURE,
+            "name": TOMLError(INVALID_TYPE),
+            "age": TOMLError(MISSING_KEY),
+            "active": TOMLError(VALIDATION_FAILURE),
         }
         result = to_dict(flat_errors)
         assert result == expected
@@ -38,13 +39,16 @@ class TestToDict:
     def test_nested_keys(self):
         """Test with dot notation nested keys."""
         flat_errors = {
-            "user.name": INVALID_TYPE,
-            "user.email": REGEX_MISMATCH,
-            "config.debug": INVALID_TYPE,
+            "user.name": TOMLError(INVALID_TYPE),
+            "user.email": TOMLError(REGEX_MISMATCH),
+            "config.debug": TOMLError(INVALID_TYPE),
         }
         expected = {
-            "user": {"name": INVALID_TYPE, "email": REGEX_MISMATCH},
-            "config": {"debug": INVALID_TYPE},
+            "user": {
+                "name": TOMLError(INVALID_TYPE),
+                "email": TOMLError(REGEX_MISMATCH),
+            },
+            "config": {"debug": TOMLError(INVALID_TYPE)},
         }
         result = to_dict(flat_errors)
         assert result == expected
@@ -52,19 +56,19 @@ class TestToDict:
     def test_deep_nesting(self):
         """Test with deeply nested keys."""
         flat_errors = {
-            "app.database.connection.host": MISSING_KEY,
-            "app.database.connection.port": INVALID_TYPE,
-            "app.cache.redis.timeout": VALIDATION_FAILURE,
+            "app.database.connection.host": TOMLError(MISSING_KEY),
+            "app.database.connection.port": TOMLError(INVALID_TYPE),
+            "app.cache.redis.timeout": TOMLError(VALIDATION_FAILURE),
         }
         expected = {
             "app": {
                 "database": {
                     "connection": {
-                        "host": MISSING_KEY,
-                        "port": INVALID_TYPE,
+                        "host": TOMLError(MISSING_KEY),
+                        "port": TOMLError(INVALID_TYPE),
                     }
                 },
-                "cache": {"redis": {"timeout": VALIDATION_FAILURE}},
+                "cache": {"redis": {"timeout": TOMLError(VALIDATION_FAILURE)}},
             }
         }
         result = to_dict(flat_errors)
@@ -73,15 +77,18 @@ class TestToDict:
     def test_array_indices(self):
         """Test with array index notation."""
         flat_errors = {
-            "items[0].name": INVALID_TYPE,
-            "items[0].price": MISSING_KEY,
-            "items[2].category": VALIDATION_FAILURE,
+            "items[0].name": TOMLError(INVALID_TYPE),
+            "items[0].price": TOMLError(MISSING_KEY),
+            "items[2].category": TOMLError(VALIDATION_FAILURE),
         }
         expected = {
             "items": [
-                {"name": INVALID_TYPE, "price": MISSING_KEY},
+                {
+                    "name": TOMLError(INVALID_TYPE),
+                    "price": TOMLError(MISSING_KEY),
+                },
                 None,
-                {"category": VALIDATION_FAILURE},
+                {"category": TOMLError(VALIDATION_FAILURE)},
             ]
         }
         result = to_dict(flat_errors)
@@ -90,13 +97,17 @@ class TestToDict:
     def test_array_element_errors(self):
         """Test with errors on array elements themselves."""
         flat_errors = {
-            "tasks[0]": INVALID_ARRAY_ELEMENT,
-            "tasks[2]": INVALID_TYPE,
-            "data[1].value": MISSING_KEY,
+            "tasks[0]": TOMLError(INVALID_ARRAY_ELEMENT),
+            "tasks[2]": TOMLError(INVALID_TYPE),
+            "data[1].value": TOMLError(MISSING_KEY),
         }
         expected = {
-            "tasks": [INVALID_ARRAY_ELEMENT, None, INVALID_TYPE],
-            "data": [None, {"value": MISSING_KEY}],
+            "tasks": [
+                TOMLError(INVALID_ARRAY_ELEMENT),
+                None,
+                TOMLError(INVALID_TYPE),
+            ],
+            "data": [None, {"value": TOMLError(MISSING_KEY)}],
         }
         result = to_dict(flat_errors)
         assert result == expected
@@ -104,21 +115,26 @@ class TestToDict:
     def test_mixed_structure(self):
         """Test with mixed dictionary and array structures."""
         flat_errors = {
-            "config.servers[0].host": INVALID_TYPE,
-            "config.servers[0].port": VALIDATION_FAILURE,
-            "config.servers[1].ssl.enabled": MISSING_KEY,
-            "config.debug": INVALID_TYPE,
-            "users[0].permissions[1]": INVALID_ARRAY_ELEMENT,
+            "config.servers[0].host": TOMLError(INVALID_TYPE),
+            "config.servers[0].port": TOMLError(VALIDATION_FAILURE),
+            "config.servers[1].ssl.enabled": TOMLError(MISSING_KEY),
+            "config.debug": TOMLError(INVALID_TYPE),
+            "users[0].permissions[1]": TOMLError(INVALID_ARRAY_ELEMENT),
         }
         expected = {
             "config": {
                 "servers": [
-                    {"host": INVALID_TYPE, "port": VALIDATION_FAILURE},
-                    {"ssl": {"enabled": MISSING_KEY}},
+                    {
+                        "host": TOMLError(INVALID_TYPE),
+                        "port": TOMLError(VALIDATION_FAILURE),
+                    },
+                    {"ssl": {"enabled": TOMLError(MISSING_KEY)}},
                 ],
-                "debug": INVALID_TYPE,
+                "debug": TOMLError(INVALID_TYPE),
             },
-            "users": [{"permissions": [None, INVALID_ARRAY_ELEMENT]}],
+            "users": [
+                {"permissions": [None, TOMLError(INVALID_ARRAY_ELEMENT)]}
+            ],
         }
         result = to_dict(flat_errors)
         assert result == expected
@@ -126,8 +142,8 @@ class TestToDict:
     def test_sparse_arrays(self):
         """Test with sparse array indices."""
         flat_errors = {
-            "items[5].name": INVALID_TYPE,
-            "items[10]": INVALID_ARRAY_ELEMENT,
+            "items[5].name": TOMLError(INVALID_TYPE),
+            "items[10]": TOMLError(INVALID_ARRAY_ELEMENT),
         }
         expected = {
             "items": [
@@ -136,12 +152,12 @@ class TestToDict:
                 None,
                 None,
                 None,
-                {"name": INVALID_TYPE},
+                {"name": TOMLError(INVALID_TYPE)},
                 None,
                 None,
                 None,
                 None,
-                INVALID_ARRAY_ELEMENT,
+                TOMLError(INVALID_ARRAY_ELEMENT),
             ]
         }
         result = to_dict(flat_errors)
@@ -150,22 +166,29 @@ class TestToDict:
     def test_complex_real_world_example(self):
         """Test with a complex real-world example."""
         flat_errors = {
-            "startup_tasks[1].args": INVALID_TYPE,
-            "startup_tasks[1].timeout": INVALID_TYPE,
-            "database.connection.pool_size": VALIDATION_FAILURE,
-            "api.cors.allowed_origins[0]": REGEX_MISMATCH,
-            "plugins.analytics.config.tracking_id": MISSING_KEY,
-            "scheduled_tasks[0].enabled": INVALID_TYPE,
+            "startup_tasks[1].args": TOMLError(INVALID_TYPE),
+            "startup_tasks[1].timeout": TOMLError(INVALID_TYPE),
+            "database.connection.pool_size": TOMLError(VALIDATION_FAILURE),
+            "api.cors.allowed_origins[0]": TOMLError(REGEX_MISMATCH),
+            "plugins.analytics.config.tracking_id": TOMLError(MISSING_KEY),
+            "scheduled_tasks[0].enabled": TOMLError(INVALID_TYPE),
         }
         expected = {
             "startup_tasks": [
                 None,
-                {"args": INVALID_TYPE, "timeout": INVALID_TYPE},
+                {
+                    "args": TOMLError(INVALID_TYPE),
+                    "timeout": TOMLError(INVALID_TYPE),
+                },
             ],
-            "database": {"connection": {"pool_size": VALIDATION_FAILURE}},
-            "api": {"cors": {"allowed_origins": [REGEX_MISMATCH]}},
-            "plugins": {"analytics": {"config": {"tracking_id": MISSING_KEY}}},
-            "scheduled_tasks": [{"enabled": INVALID_TYPE}],
+            "database": {
+                "connection": {"pool_size": TOMLError(VALIDATION_FAILURE)}
+            },
+            "api": {"cors": {"allowed_origins": [TOMLError(REGEX_MISMATCH)]}},
+            "plugins": {
+                "analytics": {"config": {"tracking_id": TOMLError(MISSING_KEY)}}
+            },
+            "scheduled_tasks": [{"enabled": TOMLError(INVALID_TYPE)}],
         }
         result = to_dict(flat_errors)
         assert result == expected
@@ -267,26 +290,30 @@ class TestSetNestedValue:
     def test_set_simple_key(self):
         """Test setting a simple key value."""
         nested = {}
-        _set_nested_value(nested, "name", INVALID_TYPE)
-        assert nested == {"name": INVALID_TYPE}
+        error = TOMLError(INVALID_TYPE)
+        _set_nested_value(nested, "name", error)
+        assert nested == {"name": error}
 
     def test_set_nested_key(self):
         """Test setting a nested key value."""
         nested = {}
-        _set_nested_value(nested, "user.name", INVALID_TYPE)
-        assert nested == {"user": {"name": INVALID_TYPE}}
+        error = TOMLError(INVALID_TYPE)
+        _set_nested_value(nested, "user.name", error)
+        assert nested == {"user": {"name": error}}
 
     def test_set_array_element(self):
         """Test setting an array element."""
         nested = {}
-        _set_nested_value(nested, "items[0]", INVALID_ARRAY_ELEMENT)
-        assert nested == {"items": [INVALID_ARRAY_ELEMENT]}
+        error = TOMLError(INVALID_ARRAY_ELEMENT)
+        _set_nested_value(nested, "items[0]", error)
+        assert nested == {"items": [error]}
 
     def test_set_nested_array_element(self):
         """Test setting a nested array element property."""
         nested = {}
-        _set_nested_value(nested, "items[0].name", INVALID_TYPE)
-        assert nested == {"items": [{"name": INVALID_TYPE}]}
+        error = TOMLError(INVALID_TYPE)
+        _set_nested_value(nested, "items[0].name", error)
+        assert nested == {"items": [{"name": error}]}
 
     def test_type_error_on_non_list_index_access(self):
         """Test TypeError when trying to access index on non-list."""
@@ -298,30 +325,34 @@ class TestSetNestedValue:
 
     def test_extend_existing_structure(self):
         """Test extending existing nested structure."""
+        regex_error = TOMLError(REGEX_MISMATCH)
         nested = {"user": {"name": "existing"}}
-        _set_nested_value(nested, "user.email", REGEX_MISMATCH)
-        assert nested == {"user": {"name": "existing", "email": REGEX_MISMATCH}}
+        _set_nested_value(nested, "user.email", regex_error)
+        assert nested == {"user": {"name": "existing", "email": regex_error}}
 
     def test_create_sparse_array(self):
         """Test creating sparse array with gaps."""
         nested = {}
-        _set_nested_value(nested, "items[5].name", INVALID_TYPE)
-        expected = {
-            "items": [None, None, None, None, None, {"name": INVALID_TYPE}]
-        }
+        error = TOMLError(INVALID_TYPE)
+        _set_nested_value(nested, "items[5].name", error)
+        expected = {"items": [None, None, None, None, None, {"name": error}]}
         assert nested == expected
 
     def test_mixed_operations(self):
         """Test multiple operations on same structure."""
         nested = {}
-        _set_nested_value(nested, "config.debug", INVALID_TYPE)
-        _set_nested_value(nested, "config.servers[0].host", MISSING_KEY)
-        _set_nested_value(nested, "config.servers[1]", INVALID_ARRAY_ELEMENT)
+        invalid_type_error = TOMLError(INVALID_TYPE)
+        missing_key_error = TOMLError(MISSING_KEY)
+        invalid_array_error = TOMLError(INVALID_ARRAY_ELEMENT)
+
+        _set_nested_value(nested, "config.debug", invalid_type_error)
+        _set_nested_value(nested, "config.servers[0].host", missing_key_error)
+        _set_nested_value(nested, "config.servers[1]", invalid_array_error)
 
         expected = {
             "config": {
-                "debug": INVALID_TYPE,
-                "servers": [{"host": MISSING_KEY}, INVALID_ARRAY_ELEMENT],
+                "debug": invalid_type_error,
+                "servers": [{"host": missing_key_error}, invalid_array_error],
             }
         }
         assert nested == expected
@@ -332,22 +363,23 @@ class TestEdgeCases:
 
     def test_overwrite_existing_values(self):
         """Test that existing values get overwritten."""
-        flat_errors = {  # pylint: disable=duplicate-key
-            "user.name": INVALID_TYPE,
-            "user.name": VALIDATION_FAILURE,
+        flat_errors = {
+            "user.name": TOMLError(
+                VALIDATION_FAILURE
+            ),  # This will be the final value
         }
         result = to_dict(flat_errors)
-        assert result == {"user": {"name": VALIDATION_FAILURE}}
+        assert result == {"user": {"name": TOMLError(VALIDATION_FAILURE)}}
 
     def test_numeric_string_keys(self):
         """Test with numeric string keys that aren't array indices."""
         flat_errors = {
-            "config.123": INVALID_TYPE,
-            "data.456.value": MISSING_KEY,
+            "config.123": TOMLError(INVALID_TYPE),
+            "data.456.value": TOMLError(MISSING_KEY),
         }
         expected = {
-            "config": {"123": INVALID_TYPE},
-            "data": {"456": {"value": MISSING_KEY}},
+            "config": {"123": TOMLError(INVALID_TYPE)},
+            "data": {"456": {"value": TOMLError(MISSING_KEY)}},
         }
         result = to_dict(flat_errors)
         assert result == expected
@@ -355,29 +387,59 @@ class TestEdgeCases:
     def test_special_characters_in_keys(self):
         """Test with special characters in keys."""
         flat_errors = {
-            "config.api-key": INVALID_TYPE,
-            "data.field_name": MISSING_KEY,
-            "settings.max@size": VALIDATION_FAILURE,
+            "config.api-key": TOMLError(INVALID_TYPE),
+            "data.field_name": TOMLError(MISSING_KEY),
+            "settings.max@size": TOMLError(VALIDATION_FAILURE),
         }
         expected = {
-            "config": {"api-key": INVALID_TYPE},
-            "data": {"field_name": MISSING_KEY},
-            "settings": {"max@size": VALIDATION_FAILURE},
+            "config": {"api-key": TOMLError(INVALID_TYPE)},
+            "data": {"field_name": TOMLError(MISSING_KEY)},
+            "settings": {"max@size": TOMLError(VALIDATION_FAILURE)},
         }
         result = to_dict(flat_errors)
         assert result == expected
 
     def test_large_array_indices(self):
         """Test with large array indices."""
-        flat_errors = {"items[100].name": INVALID_TYPE}
+        flat_errors = {"items[100].name": TOMLError(INVALID_TYPE)}
         result = to_dict(flat_errors)
         assert len(result["items"]) == 101
-        assert result["items"][100] == {"name": INVALID_TYPE}
+        assert result["items"][100] == {"name": TOMLError(INVALID_TYPE)}
         assert all(item is None for item in result["items"][:100])
 
     def test_zero_index(self):
         """Test with zero index."""
-        flat_errors = {"items[0].name": INVALID_TYPE}
-        expected = {"items": [{"name": INVALID_TYPE}]}
+        flat_errors = {"items[0].name": TOMLError(INVALID_TYPE)}
+        expected = {"items": [{"name": TOMLError(INVALID_TYPE)}]}
         result = to_dict(flat_errors)
         assert result == expected
+
+    def test_toml_error_equality(self):
+        """Test that TOMLError instances with same error codes are equal."""
+        error1 = TOMLError(INVALID_TYPE)
+        error2 = TOMLError(INVALID_TYPE)
+
+        flat_errors = {"key": error1}
+        result = to_dict(flat_errors)
+
+        # Test that the error in the result is equivalent
+        assert result["key"].code == error2.code
+        assert str(result["key"]) == str(error2)
+
+    def test_different_error_codes(self):
+        """Test with different error codes to ensure they're preserved."""
+        flat_errors = {
+            "field1": TOMLError(INVALID_TYPE),
+            "field2": TOMLError(MISSING_KEY),
+            "field3": TOMLError(REGEX_MISMATCH),
+            "field4": TOMLError(VALIDATION_FAILURE),
+            "field5": TOMLError(INVALID_ARRAY_ELEMENT),
+        }
+
+        result = to_dict(flat_errors)
+
+        assert result["field1"].code == INVALID_TYPE
+        assert result["field2"].code == MISSING_KEY
+        assert result["field3"].code == REGEX_MISMATCH
+        assert result["field4"].code == VALIDATION_FAILURE
+        assert result["field5"].code == INVALID_ARRAY_ELEMENT

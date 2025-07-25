@@ -6,7 +6,7 @@ from re import Pattern, sub
 from typing import Any, Callable, Dict
 
 from tomlval.errors import TOMLSchemaConflictError, TOMLSchemaValidationError
-from tomlval.types import Invalid, Optional
+from tomlval.types import Invalid, Literal, Optional
 from tomlval.utils.validate_key import validate_key
 
 
@@ -92,12 +92,15 @@ def _validate_schema_recursive(schema: Dict[str, Any], parent_key: str) -> None:
 
 def _validate_schema_value(key: str, value: Any) -> None:
     """Validate a single schema value."""
-    # Primitive or Invalid
+    # Primitive, Invalid, or Literal
     if (
         _is_primitive_type(value)
         or isinstance(value, Invalid)
         or value is Invalid
+        or isinstance(value, Literal)
     ):
+        if isinstance(value, Literal):
+            _validate_literal_value(key, value)
         return
 
     # Optional
@@ -128,7 +131,43 @@ def _validate_schema_value(key: str, value: Any) -> None:
     raise TOMLSchemaValidationError(
         f"Schema key '{key}' has invalid type '{type(value).__name__}'. "
         f"Must be a primitive type, tuple of primitives, table (dict), "
-        f"function, array, Optional, or Invalid."
+        f"function, array, Optional, Literal, or Invalid."
+    )
+
+
+def _validate_literal_value(key: str, literal_value: Literal) -> None:
+    """Validate a Literal schema value."""
+    if not hasattr(literal_value, "value_type"):
+        raise TOMLSchemaValidationError(
+            f"Schema key '{key}' has invalid Literal instance. "
+            f"Literal must have a 'value_type' attribute."
+        )
+
+    value_type = literal_value.value_type
+
+    # Single string value
+    if isinstance(value_type, str):
+        return
+
+    # List of string values
+    if isinstance(value_type, list):
+        if len(value_type) == 0:
+            raise TOMLSchemaValidationError(
+                f"Schema key '{key}' Literal cannot have empty value list. "
+                f"Must contain at least one string value."
+            )
+
+        for i, val in enumerate(value_type):
+            if not isinstance(val, str):
+                raise TOMLSchemaValidationError(
+                    f"Schema key '{key}' Literal value at index {i} "
+                    f"must be a string. Got {type(val).__name__}."
+                )
+        return
+
+    raise TOMLSchemaValidationError(
+        f"Schema key '{key}' Literal value_type must be a string "
+        f"or list of strings. Got {type(value_type).__name__}."
     )
 
 
@@ -175,6 +214,10 @@ def _validate_tuple_value(key: str, tuple_value: tuple) -> None:
             _validate_schema_value(f"{key}[{i}]", item.value_type)
             continue
 
+        if isinstance(item, Literal):
+            _validate_literal_value(f"{key}[{i}]", item)
+            continue
+
         if (
             not _is_primitive_type(item)
             and not isinstance(item, dict)
@@ -182,7 +225,8 @@ def _validate_tuple_value(key: str, tuple_value: tuple) -> None:
         ):
             raise TOMLSchemaValidationError(
                 f"Schema key '{key}' tuple item at index {i} "
-                f"is not a primitive type, table, function, or Optional."
+                f"is not a primitive type, table, function, Optional, "
+                f"or Literal."
             )
 
         if callable(item) and not isinstance(item, type):
@@ -217,6 +261,11 @@ def _validate_single_element_array(key: str, array_type: Any) -> None:
     if isinstance(array_type, Optional):
         array_type = array_type.value_type
 
+    # Literal array
+    if isinstance(array_type, Literal):
+        _validate_literal_value(f"{key}[0]", array_type)
+        return
+
     # Array of primitives
     if _is_primitive_type(array_type):
         return
@@ -234,7 +283,7 @@ def _validate_single_element_array(key: str, array_type: Any) -> None:
     raise TOMLSchemaValidationError(
         f"Schema key '{key}' array type must "
         f"be a primitive type, a nested table (dict), function, "
-        f"or Optional."
+        f"Optional, or Literal."
     )
 
 
@@ -252,6 +301,11 @@ def _validate_mixed_type_array(key: str, array_types: list) -> None:
         if isinstance(array_type, Optional):
             array_type = array_type.value_type
 
+        # Literal array elements
+        if isinstance(array_type, Literal):
+            _validate_literal_value(f"{key}[{i}]", array_type)
+            continue
+
         if (
             not _is_primitive_type(array_type)
             and not isinstance(array_type, dict)
@@ -259,7 +313,7 @@ def _validate_mixed_type_array(key: str, array_types: list) -> None:
         ):
             raise TOMLSchemaValidationError(
                 f"Schema key '{key}' array element at index {i} "
-                f"must be a primitive type, table (dict), or function. "
+                f"must be a primitive type, table (dict), function, or Literal."
                 f"Got {type(array_type).__name__}."
             )
 

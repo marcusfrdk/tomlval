@@ -12,7 +12,6 @@ class Optional:
 
         Args:
             value_type: The type or validator for the optional value
-            default: Default value if the key is missing
         """
         self.value_type = value_type
 

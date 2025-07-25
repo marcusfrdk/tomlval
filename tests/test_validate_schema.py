@@ -7,7 +7,7 @@ from datetime import date, datetime, time
 
 import pytest
 
-from tomlval import Invalid, Optional
+from tomlval import Invalid, Literal, Optional
 from tomlval.errors import (
     TOMLKeyValidationError,
     TOMLSchemaConflictError,
@@ -328,7 +328,7 @@ class TestValidateSchema:
         ]
 
         for schema in valid_schemas:
-            validate_schema(schema)  # Should not raise
+            validate_schema(schema)
 
     def test_wildcard_keys_in_schema(self):
         """Test wildcard patterns in schema keys."""
@@ -339,7 +339,7 @@ class TestValidateSchema:
         ]
 
         for schema in valid_schemas:
-            validate_schema(schema)  # Should not raise
+            validate_schema(schema)
 
     def test_schema_value_validation_edge_cases(self):
         """Test edge cases for schema value validation."""
@@ -784,8 +784,8 @@ class TestValidateSchema:
         schema_with_class = {"deprecated": Invalid}
         schema_with_instance = {"deprecated": Invalid()}
 
-        validate_schema(schema_with_class)  # Should not raise
-        validate_schema(schema_with_instance)  # Should not raise
+        validate_schema(schema_with_class)
+        validate_schema(schema_with_instance)
 
         invalid_schemas = [
             {"key": [Invalid]},  # Class in array
@@ -845,6 +845,300 @@ class TestValidateSchema:
             {"config*.old*": Invalid()},  # Multiple wildcards
             {"*.legacy": Invalid},  # Dotted wildcard
             {"data*.old*.field": Invalid()},  # Complex dotted wildcard
+        ]
+
+        for schema in valid_schemas:
+            validate_schema(schema)
+
+
+class TestLiteralTypeValidation:
+    """Test cases for Literal type validation in schemas."""
+
+    def test_valid_literal_single_string(self):
+        """Test schema with valid single string literal."""
+        valid_schemas = [
+            {"status": Literal("active")},
+            {"level": Literal("debug")},
+            {"mode": Literal("production")},
+        ]
+
+        for schema in valid_schemas:
+            validate_schema(schema)
+
+    def test_valid_literal_multiple_strings(self):
+        """Test schema with valid multiple string literals."""
+        valid_schemas = [
+            {"status": Literal(["active", "inactive", "pending"])},
+            {"level": Literal(["debug", "info", "warning", "error"])},
+            {"environment": Literal(["dev", "staging", "prod"])},
+            {"priority": Literal(["low", "medium", "high", "critical"])},
+        ]
+
+        for schema in valid_schemas:
+            validate_schema(schema)
+
+    def test_valid_literal_nested_in_dict(self):
+        """Test literals in nested dictionary structures."""
+        valid_schemas = [
+            {
+                "config": {
+                    "log_level": Literal(["debug", "info", "error"]),
+                    "environment": Literal("production"),
+                }
+            },
+            {
+                "app": {
+                    "database": {
+                        "type": Literal(["mysql", "postgresql", "sqlite"]),
+                        "ssl_mode": Literal("require"),
+                    }
+                }
+            },
+        ]
+
+        for schema in valid_schemas:
+            validate_schema(schema)
+
+    def test_valid_literal_in_arrays(self):
+        """Test literals as array element types."""
+        valid_schemas = [
+            {"statuses": [Literal(["active", "inactive"])]},
+            {"log_levels": [Literal("debug")]},
+            {"environments": [Literal(["dev", "prod", "staging"])]},
+        ]
+
+        for schema in valid_schemas:
+            validate_schema(schema)
+
+    def test_valid_literal_in_tuples(self):
+        """Test literals in tuple type definitions."""
+        valid_schemas = [
+            {"value": (str, Literal(["yes", "no"]))},
+            {"config": (int, Literal("active"), bool)},
+            {"mixed": (Literal(["small", "large"]), str, Literal("enabled"))},
+        ]
+
+        for schema in valid_schemas:
+            validate_schema(schema)
+
+    def test_valid_optional_literals(self):
+        """Test optional literal types."""
+        valid_schemas = [
+            {"status": Optional(Literal(["active", "inactive"]))},
+            {"level": Optional(Literal("debug"))},
+            {"mode": Optional(Literal(["dev", "prod"]))},
+        ]
+
+        for schema in valid_schemas:
+            validate_schema(schema)
+
+    def test_valid_literal_with_wildcards(self):
+        """Test literals with wildcard patterns."""
+        valid_schemas = [
+            {"status_*": Literal(["active", "inactive"])},
+            {"*_level": Literal("debug")},
+            {"config.*.mode": Literal(["strict", "permissive"])},
+        ]
+
+        for schema in valid_schemas:
+            validate_schema(schema)
+
+    def test_invalid_literal_empty_list(self):
+        """Test that empty literal lists are invalid."""
+        invalid_schemas = [
+            {"status": Literal([])},
+            {"level": Literal([])},
+        ]
+
+        for schema in invalid_schemas:
+            with pytest.raises(TOMLSchemaValidationError):
+                validate_schema(schema)
+
+    def test_invalid_literal_non_string_values(self):
+        """Test that non-string literal values are invalid."""
+        invalid_schemas = [
+            {"status": Literal([123])},  # type: ignore
+            {"level": Literal([True, False])},  # type: ignore
+            {"mode": Literal([1.5, 2.7])},  # type: ignore
+            {"mixed": Literal(["valid", 123, "also_valid"])},  # type: ignore
+            {"single": Literal(42)},  # type: ignore
+            {"boolean": Literal(True)},  # type: ignore
+        ]
+
+        for schema in invalid_schemas:
+            with pytest.raises(TOMLSchemaValidationError):
+                validate_schema(schema)
+
+    def test_invalid_literal_none_values(self):
+        """Test that None values in literals are invalid."""
+        invalid_schemas = [
+            {"status": Literal([None])},  # type: ignore
+            {"mixed": Literal(["active", None, "inactive"])},  # type: ignore
+            {"single": Literal(None)},  # type: ignore
+        ]
+
+        for schema in invalid_schemas:
+            with pytest.raises(TOMLSchemaValidationError):
+                validate_schema(schema)
+
+    def test_invalid_literal_nested_structures(self):
+        """Test that nested structures in literals are invalid."""
+        invalid_schemas = [
+            {"config": Literal([{"nested": "dict"}])},  # type: ignore
+            {"items": Literal([["nested", "list"]])},  # type: ignore
+            {"mixed": Literal(["valid", {"invalid": "dict"}])},  # type: ignore
+        ]
+
+        for schema in invalid_schemas:
+            with pytest.raises(TOMLSchemaValidationError):
+                validate_schema(schema)
+
+    def test_literal_duplicate_values(self):
+        """Test that duplicate values in literals are handled."""
+        valid_schemas = [
+            {"status": Literal(["active", "active", "inactive"])},
+            {"level": Literal(["debug", "info", "debug", "error"])},
+        ]
+
+        for schema in valid_schemas:
+            validate_schema(schema)
+
+    def test_literal_case_sensitivity(self):
+        """Test that literal values are case-sensitive."""
+        valid_schemas = [
+            {"status": Literal(["Active", "ACTIVE", "active"])},
+            {"level": Literal(["Debug", "DEBUG", "debug"])},
+        ]
+
+        for schema in valid_schemas:
+            validate_schema(schema)
+
+    def test_literal_empty_string_values(self):
+        """Test literals with empty string values."""
+        valid_schemas = [
+            {"status": Literal(["", "active"])},
+            {"level": Literal("")},
+            {"mixed": Literal(["", "debug", "info", ""])},
+        ]
+
+        for schema in valid_schemas:
+            validate_schema(schema)
+
+    def test_literal_whitespace_values(self):
+        """Test literals with whitespace-only values."""
+        valid_schemas = [
+            {"status": Literal([" ", "active"])},
+            {"level": Literal("   ")},
+            {"mixed": Literal(["\t", "\n", "debug"])},
+        ]
+
+        for schema in valid_schemas:
+            validate_schema(schema)
+
+    def test_literal_unicode_values(self):
+        """Test literals with unicode values."""
+        valid_schemas = [
+            {"status": Literal(["активный", "неактивный"])},
+            {"level": Literal("débogage")},
+            {"emoji": Literal(["✅", "❌", "⚠️"])},
+        ]
+
+        for schema in valid_schemas:
+            validate_schema(schema)
+
+    def test_complex_literal_schema(self):
+        """Test a complex schema with various literal usages."""
+        schema = {
+            "app": {
+                "name": str,
+                "environment": Literal(
+                    ["development", "staging", "production"]
+                ),
+                "log_level": Optional(
+                    Literal(["debug", "info", "warning", "error"])
+                ),
+            },
+            "database": {
+                "type": Literal(["mysql", "postgresql", "sqlite"]),
+                "ssl_mode": Optional(Literal("require")),
+                "connection_pool": {
+                    "strategy": Literal(["fixed", "dynamic"]),
+                    "health_check": Optional(
+                        Literal(["ping", "select", "none"])
+                    ),
+                },
+            },
+            "services": [
+                {
+                    "name": str,
+                    "status": Literal(["running", "stopped", "error"]),
+                    "restart_policy": Optional(
+                        Literal(["always", "on-failure", "never"])
+                    ),
+                }
+            ],
+            "feature_flags": {
+                "*_enabled": Literal(["true", "false", "auto"]),
+                "experimental_*": Optional(Literal(["on", "off"])),
+            },
+            "mixed_config": (
+                str,
+                Literal(["json", "yaml", "toml"]),
+                Optional(bool),
+            ),
+        }
+
+        validate_schema(schema)
+
+    def test_literal_conflicts_with_other_schema_keys(self):
+        """Test literal definitions don't conflict with other schema keys."""
+        valid_schemas = [
+            {
+                "status": Literal(["active"]),
+                "user.status": str,
+            },
+            {
+                "config": {
+                    "mode": Literal(["strict"]),
+                    "debug": bool,
+                },
+                "config.level": str,
+            },
+        ]
+
+        for schema in valid_schemas:
+            validate_schema(schema)
+
+    def test_literal_with_array_notation_keys(self):
+        """Test literals with array notation keys."""
+        valid_schemas = [
+            {"items[0]": Literal(["first", "primary"])},
+            {"users[1].role": Literal(["admin", "user", "guest"])},
+            {"config.servers[0].type": Optional(Literal(["web", "api", "db"]))},
+        ]
+
+        for schema in valid_schemas:
+            validate_schema(schema)
+
+    def test_invalid_literal_in_optional_wrapping(self):
+        """Test invalid literal definitions when wrapped in Optional."""
+        invalid_schemas = [
+            {"status": Optional(Literal([]))},
+            {"level": Optional(Literal([123]))},  # type: ignore
+            {"mode": Optional(Literal(None))},  # type: ignore
+        ]
+
+        for schema in invalid_schemas:
+            with pytest.raises(TOMLSchemaValidationError):
+                validate_schema(schema)
+
+    def test_literal_edge_cases_in_validation(self):
+        """Test edge cases for literal validation."""
+        valid_schemas = [
+            {"key": Literal("single_value")},
+            {"special_chars": Literal(["@#$%", "^&*()", "{}[]"])},
+            {"numbers_as_strings": Literal(["123", "456", "0"])},
+            {"mixed_case": Literal(["CamelCase", "snake_case", "UPPER_CASE"])},
         ]
 
         for schema in valid_schemas:

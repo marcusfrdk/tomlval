@@ -10,7 +10,15 @@
 ![Downloads](https://static.pepy.tech/badge/tomlval)
 ![Monthly Downloads](https://static.pepy.tech/badge/tomlval/month)
 
-A dependency-free and easy to use validator made for the TOML markup language.
+A flexible, easy-to-use, and dependency-free Python library for validating TOML data against custom schemas.
+
+## Features
+
+-   **Full TOML support**: Validates TOML data against custom schemas, ensuring compliance with the [TOML specification](https://toml.io/en/).
+-   **Dependency-free**: No external dependencies, making it lightweight and easy to integrate.
+-   **Flexible**: Supports custom schemas with optional fields and type validation.
+-   **Easy to use**: Simple API for defining schemas and validating data.
+-   **Type hints**: Utilizes Python's type hints for schema definitions, making code more readable and maintainable.
 
 ## Installation
 
@@ -20,7 +28,39 @@ You can install the package from [PyPI](https://pypi.org/project/tomlval/):
 pip install tomlval
 ```
 
-The package is available for Python 3.11 and newer.
+The package is available for Python 3.10 and newer.
+
+## Usage
+
+### Basic Example
+
+```python
+import re
+from datetime import datetime
+from tomlval import TOMLSchema, Optional, Invalid, Literal
+
+schema = TOMLSchema({
+    "*": Invalid # Catch-all
+})
+```
+
+## Testing
+
+Test dependencies are installed with the `dev` extra:
+
+```bash
+pip install tomlval[dev]
+```
+
+Run the tests with:
+
+```bash
+pytest
+```
+
+## Contributing
+
+Contributions are welcome. If you have suggestions for improvements or find bugs, please open an issue or submit a pull request.
 
 ## License
 

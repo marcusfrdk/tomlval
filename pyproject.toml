@@ -1,7 +1,7 @@
 [project]
 name = "tomlval"
-version = "1.2.0"
-description = "A simple and easy to use TOML validator for Python."
+version = "2.0.0"
+description = "A flexible, easy-to-use, and dependency-free Python library for validating TOML data against custom schemas."
 authors = [
     { name = "Marcus Fredriksson", email = "marcus@marcusfredriksson.com" },
 ]
@@ -50,6 +50,7 @@ disable = [
     "broad-exception-caught",
     "too-many-return-statements",
     "too-many-branches",
+    "too-many-public-methods",
 ]
 
 [tool.pylint.format]

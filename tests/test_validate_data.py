@@ -5,7 +5,8 @@ from datetime import date, datetime, time
 
 import pytest
 
-from tomlval.errors.error_codes import (
+from tomlval.errors import TOMLKeyValidationError
+from tomlval.toml_error import (
     DATETIME_PARSE_ERROR,
     FUNCTION_EXECUTION_ERROR,
     INVALID_ARRAY_ELEMENT,
@@ -15,8 +16,8 @@ from tomlval.errors.error_codes import (
     MISSING_KEY,
     REGEX_MISMATCH,
     VALIDATION_FAILURE,
+    TOMLError,
 )
-from tomlval.errors.key_validation_error import TOMLKeyValidationError
 from tomlval.toml_schema import TOMLSchema
 from tomlval.types import Invalid, Optional
 from tomlval.utils.validate_data import validate_data
@@ -66,7 +67,7 @@ class TestPrimitiveTypes:
 
         errors = validate_data(data, schema)
 
-        assert errors == {"name": INVALID_TYPE}
+        assert errors == {"name": TOMLError(INVALID_TYPE)}
 
     def test_valid_integer(self):
         """Test valid integer validation."""
@@ -84,7 +85,7 @@ class TestPrimitiveTypes:
 
         errors = validate_data(data, schema)
 
-        assert errors == {"age": INVALID_TYPE}
+        assert errors == {"age": TOMLError(INVALID_TYPE)}
 
     def test_valid_float(self):
         """Test valid float validation."""
@@ -102,7 +103,7 @@ class TestPrimitiveTypes:
 
         errors = validate_data(data, schema)
 
-        assert errors == {"score": INVALID_TYPE}
+        assert errors == {"score": TOMLError(INVALID_TYPE)}
 
     def test_valid_boolean(self):
         """Test valid boolean validation."""
@@ -120,7 +121,7 @@ class TestPrimitiveTypes:
 
         errors = validate_data(data, schema)
 
-        assert errors == {"active": INVALID_TYPE}
+        assert errors == {"active": TOMLError(INVALID_TYPE)}
 
 
 class TestDatetimeTypes:
@@ -143,7 +144,7 @@ class TestDatetimeTypes:
 
         errors = validate_data(data, schema)
 
-        assert errors == {"created": DATETIME_PARSE_ERROR}
+        assert errors == {"created": TOMLError(DATETIME_PARSE_ERROR)}
 
     def test_valid_date(self):
         """Test valid date validation."""
@@ -162,7 +163,7 @@ class TestDatetimeTypes:
 
         errors = validate_data(data, schema)
 
-        assert errors == {"birthday": DATETIME_PARSE_ERROR}
+        assert errors == {"birthday": TOMLError(DATETIME_PARSE_ERROR)}
 
     def test_valid_time(self):
         """Test valid time validation."""
@@ -181,7 +182,7 @@ class TestDatetimeTypes:
 
         errors = validate_data(data, schema)
 
-        assert errors == {"meeting": DATETIME_PARSE_ERROR}
+        assert errors == {"meeting": TOMLError(DATETIME_PARSE_ERROR)}
 
 
 class TestRegexValidation:
@@ -205,7 +206,7 @@ class TestRegexValidation:
 
         errors = validate_data(data, schema)
 
-        assert errors == {"phone": REGEX_MISMATCH}
+        assert errors == {"phone": TOMLError(REGEX_MISMATCH)}
 
     def test_regex_with_non_string_value(self):
         """Test regex validation with non-string value."""
@@ -215,7 +216,7 @@ class TestRegexValidation:
 
         errors = validate_data(data, schema)
 
-        assert errors == {"code": INVALID_TYPE}
+        assert errors == {"code": TOMLError(INVALID_TYPE)}
 
 
 class TestFunctionValidation:
@@ -245,7 +246,7 @@ class TestFunctionValidation:
 
         errors = validate_data(data, schema)
 
-        assert errors == {"value": VALIDATION_FAILURE}
+        assert errors == {"value": TOMLError(VALIDATION_FAILURE)}
 
     def test_function_value_param_success(self):
         """Test function with value parameter that passes."""
@@ -271,7 +272,7 @@ class TestFunctionValidation:
 
         errors = validate_data(data, schema)
 
-        assert errors == {"number": VALIDATION_FAILURE}
+        assert errors == {"number": TOMLError(VALIDATION_FAILURE)}
 
     def test_function_key_param_success(self):
         """Test function with key parameter that passes."""
@@ -297,7 +298,7 @@ class TestFunctionValidation:
 
         errors = validate_data(data, schema)
 
-        assert errors == {"name": VALIDATION_FAILURE}
+        assert errors == {"name": TOMLError(VALIDATION_FAILURE)}
 
     def test_function_both_params_success(self):
         """Test function with both key and value parameters that passes."""
@@ -323,7 +324,7 @@ class TestFunctionValidation:
 
         errors = validate_data(data, schema)
 
-        assert errors == {"test": VALIDATION_FAILURE}
+        assert errors == {"test": TOMLError(VALIDATION_FAILURE)}
 
     def test_function_execution_error(self):
         """Test function that raises an exception."""
@@ -336,7 +337,7 @@ class TestFunctionValidation:
 
         errors = validate_data(data, schema)
 
-        assert errors == {"value": FUNCTION_EXECUTION_ERROR}
+        assert errors == {"value": TOMLError(FUNCTION_EXECUTION_ERROR)}
 
 
 class TestOptionalValues:
@@ -358,7 +359,7 @@ class TestOptionalValues:
 
         errors = validate_data(data, schema)
 
-        assert errors == {"age": INVALID_TYPE}
+        assert errors == {"age": TOMLError(INVALID_TYPE)}
 
     def test_optional_missing(self):
         """Test optional value that is missing."""
@@ -376,7 +377,7 @@ class TestOptionalValues:
 
         errors = validate_data(data, schema)
 
-        assert errors == {"name": MISSING_KEY}
+        assert errors == {"name": TOMLError(MISSING_KEY)}
 
 
 class TestInvalidType:
@@ -389,7 +390,7 @@ class TestInvalidType:
 
         errors = validate_data(data, schema)
 
-        assert errors == {"forbidden": INVALID_KEY}
+        assert errors == {"forbidden": TOMLError(INVALID_KEY)}
 
     def test_invalid_instance_present(self):
         """Test that Invalid instance marks key as invalid."""
@@ -398,7 +399,7 @@ class TestInvalidType:
 
         errors = validate_data(data, schema)
 
-        assert errors == {"forbidden": INVALID_KEY}
+        assert errors == {"forbidden": TOMLError(INVALID_KEY)}
 
 
 class TestNestedDictionaries:
@@ -420,7 +421,7 @@ class TestNestedDictionaries:
 
         errors = validate_data(data, schema)
 
-        assert errors == {"user": INVALID_TYPE}
+        assert errors == {"user": TOMLError(INVALID_TYPE)}
 
     def test_invalid_nested_dict_field(self):
         """Test nested dictionary with invalid field."""
@@ -429,7 +430,7 @@ class TestNestedDictionaries:
 
         errors = validate_data(data, schema)
 
-        assert errors == {"name": INVALID_TYPE}
+        assert errors == {"name": TOMLError(INVALID_TYPE)}
 
     def test_deeply_nested_dict(self):
         """Test deeply nested dictionary validation."""
@@ -460,7 +461,7 @@ class TestArrayValidation:
 
         errors = validate_data(data, schema)
 
-        assert errors == {"numbers[1]": INVALID_TYPE}
+        assert errors == {"numbers[1]": TOMLError(INVALID_TYPE)}
 
     def test_valid_mixed_type_array(self):
         """Test valid mixed-type array."""
@@ -478,7 +479,7 @@ class TestArrayValidation:
 
         errors = validate_data(data, schema)
 
-        assert errors == {"values[1]": INVALID_ARRAY_ELEMENT}
+        assert errors == {"values[1]": TOMLError(INVALID_ARRAY_ELEMENT)}
 
     def test_array_with_wrong_container_type(self):
         """Test array schema with non-array data."""
@@ -487,7 +488,7 @@ class TestArrayValidation:
 
         errors = validate_data(data, schema)
 
-        assert errors == {"items": INVALID_TYPE}
+        assert errors == {"items": TOMLError(INVALID_TYPE)}
 
     def test_array_of_dicts(self):
         """Test array containing dictionaries."""
@@ -512,7 +513,7 @@ class TestArrayValidation:
 
         errors = validate_data(data, schema)
 
-        assert errors == {"age": INVALID_TYPE}
+        assert errors == {"age": TOMLError(INVALID_TYPE)}
 
 
 class TestTupleValidation:
@@ -543,7 +544,7 @@ class TestTupleValidation:
 
         errors = validate_data(data, schema)
 
-        assert errors == {"value": INVALID_TUPLE_TYPE}
+        assert errors == {"value": TOMLError(INVALID_TUPLE_TYPE)}
 
     def test_complex_tuple_with_functions(self):
         """Test tuple with functions and types."""
@@ -556,7 +557,7 @@ class TestTupleValidation:
 
         errors = validate_data(data, schema)
 
-        assert errors == {"value": INVALID_TUPLE_TYPE}
+        assert errors == {"value": TOMLError(INVALID_TUPLE_TYPE)}
 
 
 class TestDottedKeyValidation:
@@ -578,7 +579,7 @@ class TestDottedKeyValidation:
 
         errors = validate_data(data, schema)
 
-        assert errors == {"user.profile.name": INVALID_TYPE}
+        assert errors == {"user.profile.name": TOMLError(INVALID_TYPE)}
 
     def test_missing_dotted_key_path(self):
         """Test missing path in dotted key."""
@@ -587,7 +588,7 @@ class TestDottedKeyValidation:
 
         errors = validate_data(data, schema)
 
-        assert errors == {"user.profile.name": MISSING_KEY}
+        assert errors == {"user.profile.name": TOMLError(MISSING_KEY)}
 
     def test_optional_dotted_key_missing(self):
         """Test missing optional dotted key."""
@@ -605,7 +606,7 @@ class TestDottedKeyValidation:
 
         errors = validate_data(data, schema)
 
-        assert errors == {"user.name": MISSING_KEY}
+        assert errors == {"user.name": TOMLError(MISSING_KEY)}
 
 
 class TestArrayNotationValidation:
@@ -627,7 +628,7 @@ class TestArrayNotationValidation:
 
         errors = validate_data(data, schema)
 
-        assert errors == {"items[1]": INVALID_TYPE}
+        assert errors == {"items[1]": TOMLError(INVALID_TYPE)}
 
     def test_array_notation_missing_array(self):
         """Test array notation with missing array."""
@@ -636,7 +637,7 @@ class TestArrayNotationValidation:
 
         errors = validate_data(data, schema)
 
-        assert errors == {"items[0]": MISSING_KEY}
+        assert errors == {"items[0]": TOMLError(MISSING_KEY)}
 
     def test_array_notation_wrong_container_type(self):
         """Test array notation with non-array."""
@@ -645,7 +646,7 @@ class TestArrayNotationValidation:
 
         errors = validate_data(data, schema)
 
-        assert errors == {"items[0]": INVALID_TYPE}
+        assert errors == {"items[0]": TOMLError(INVALID_TYPE)}
 
     def test_array_notation_index_out_of_bounds(self):
         """Test array notation with out of bounds index."""
@@ -654,7 +655,7 @@ class TestArrayNotationValidation:
 
         errors = validate_data(data, schema)
 
-        assert errors == {"items[5]": MISSING_KEY}
+        assert errors == {"items[5]": TOMLError(MISSING_KEY)}
 
     def test_array_notation_invalid_index(self):
         """Test array notation with invalid index during schema creation."""
@@ -692,7 +693,7 @@ class TestWildcardPatterns:
 
         errors = validate_data(data, schema)
 
-        assert errors == {"user1": INVALID_TYPE}
+        assert errors == {"user1": TOMLError(INVALID_TYPE)}
 
     def test_dotted_wildcard_pattern(self):
         """Test dotted wildcard pattern."""
@@ -738,7 +739,7 @@ class TestWildcardPatterns:
 
         errors = validate_data(data, schema)
 
-        assert errors == {"forbidden": INVALID_KEY}
+        assert errors == {"forbidden": TOMLError(INVALID_KEY)}
 
     def test_mixed_wildcard_priority(self):
         """Test mixed wildcard patterns with priority."""
@@ -756,7 +757,7 @@ class TestWildcardPatterns:
 
         errors = validate_data(data, schema)
 
-        assert errors == {"other_key": INVALID_KEY}
+        assert errors == {"other_key": TOMLError(INVALID_KEY)}
 
 
 class TestComplexScenarios:
@@ -841,14 +842,14 @@ class TestComplexScenarios:
         errors = validate_data(data, schema)
 
         expected_errors = {
-            "app.name": INVALID_TYPE,
-            "app.version": VALIDATION_FAILURE,
-            "app.debug": INVALID_TYPE,
-            "port": INVALID_TYPE,
-            "password": MISSING_KEY,
-            "features[1]": INVALID_TYPE,
-            "cpu": INVALID_TYPE,
-            "name": INVALID_TYPE,
+            "app.name": TOMLError(INVALID_TYPE),
+            "app.version": TOMLError(VALIDATION_FAILURE),
+            "app.debug": TOMLError(INVALID_TYPE),
+            "port": TOMLError(INVALID_TYPE),
+            "password": TOMLError(MISSING_KEY),
+            "features[1]": TOMLError(INVALID_TYPE),
+            "cpu": TOMLError(INVALID_TYPE),
+            "name": TOMLError(INVALID_TYPE),
         }
 
         assert errors == expected_errors
@@ -874,7 +875,7 @@ class TestComplexScenarios:
 
         errors = validate_data(data, schema)
 
-        assert errors == {"random_key": INVALID_KEY}
+        assert errors == {"random_key": TOMLError(INVALID_KEY)}
 
     def test_edge_case_empty_data(self):
         """Test edge case with empty data."""
@@ -885,7 +886,7 @@ class TestComplexScenarios:
 
         errors = validate_data(data, schema)
 
-        assert errors == {"required": MISSING_KEY}
+        assert errors == {"required": TOMLError(MISSING_KEY)}
 
     def test_edge_case_empty_schema(self):
         """Test edge case with empty schema."""
@@ -903,4 +904,32 @@ class TestComplexScenarios:
 
         errors = validate_data(data, schema)
 
-        assert errors == {"'key.with.dots'": MISSING_KEY}
+        assert errors == {"'key.with.dots'": TOMLError(MISSING_KEY)}
+
+    def test_as_dict_parameter(self):
+        """Test the as_dict parameter functionality."""
+        data = {"user": {"name": 123, "age": "thirty"}}  # Both invalid
+        schema = TOMLSchema({"user": {"name": str, "age": int}})
+
+        flat_errors = validate_data(data, schema)
+        assert isinstance(flat_errors, dict)
+        assert "name" in flat_errors
+        assert "age" in flat_errors
+        assert isinstance(flat_errors["name"], TOMLError)
+
+        nested_errors = validate_data(data, schema, as_dict=True)
+        assert isinstance(nested_errors, dict)
+
+    def test_boolean_int_distinction(self):
+        """Test that boolean values are properly distinguished from integers."""
+        data = {"flag": True, "count": 1}
+        schema = TOMLSchema({"flag": bool, "count": int})
+
+        errors = validate_data(data, schema)
+        assert not errors
+
+        data = {"count": True}
+        schema = TOMLSchema({"count": int})
+
+        errors = validate_data(data, schema)
+        assert errors == {"count": TOMLError(INVALID_TYPE)}
