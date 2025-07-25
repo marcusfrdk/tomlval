@@ -81,33 +81,53 @@ def validate_data(data, schema, *, as_dict=False):
 
 
 def _validate_function_signature(
-    key_path: str, data_value: Any, func: Callable
-) -> bool:
+    key_path: str, value: Any, validator: Callable
+) -> Any:
     """
-    Validate data using a custom function.
+    Execute function validator and return the result.
 
     Returns:
-        True if validation passes, False otherwise.
+        - None or falsy value: validation passed
+        - Any truthy value: validation failed (used as error code)
+    Raises:
+        ValueError: If the function signature is invalid or if the
+                    function execution fails.
     """
-    sig = inspect.signature(func)
+    sig = inspect.signature(validator)
     params = list(sig.parameters.keys())
     param_count = len(params)
 
-    if param_count == 0:
-        result = func()
-    elif param_count == 1:
-        param_name = params[0]
-        if param_name == "key":
-            result = func(key_path)
+    try:
+        if param_count == 0:
+            result = validator()
+        elif param_count == 1:
+            param_name = params[0]
+            if param_name == "key":
+                key_name = key_path.split(".")[-1].split("[")[0]
+                result = validator(key_name)
+            elif param_name == "value":
+                result = validator(value)
+            else:
+                raise ValueError(f"Invalid parameter name: {param_name}")
+        elif param_count == 2:
+            param1, param2 = params
+            if {param1, param2} == {"key", "value"}:
+                key_name = key_path.split(".")[-1].split("[")[0]
+                if param1 == "key":
+                    result = validator(key_name, value)
+                else:
+                    result = validator(value, key_name)
+            else:
+                raise ValueError(f"Invalid parameter names: {param1}, {param2}")
         else:
-            result = func(data_value)
-    else:
-        if "key" in params and "value" in params:
-            result = func(key=key_path, value=data_value)
-        else:
-            result = func(key_path, data_value)
+            raise ValueError(
+                f"Function must have 0-2 parameters, got {param_count}"
+            )
 
-    return bool(result)
+        return result
+
+    except Exception as e:
+        raise e
 
 
 class DataValidator:
@@ -357,8 +377,17 @@ class DataValidator:
                 result = _validate_function_signature(
                     key_path, data_value, schema_value
                 )
-                if not result:
-                    self.errors[key_path] = TOMLError(VALIDATION_FAILURE)
+
+                if result:
+                    if isinstance(result, str):
+                        error_code = result
+                    elif result is True:
+                        error_code = VALIDATION_FAILURE
+                    else:
+                        error_code = str(result)
+
+                    self.errors[key_path] = TOMLError(error_code)
+
             except Exception:
                 self.errors[key_path] = TOMLError(FUNCTION_EXECUTION_ERROR)
             return True
@@ -442,26 +471,63 @@ class DataValidator:
                         if isinstance(element_value, bool):
                             valid_type_found = True
                             break
-                    elif isinstance(element_value, allowed_type):
-                        valid_type_found = True
-                        break
+                    else:
+                        if isinstance(element_value, allowed_type):
+                            valid_type_found = True
+                            break
                     continue
 
-                temp_errors = {}
-                temp_validator = DataValidator(
-                    element_value,
-                    allowed_type,
-                    temp_errors,
-                )
-                temp_validator.validate()
+                # Callables
+                if callable(allowed_type) and not isinstance(
+                    allowed_type, type
+                ):
+                    try:
+                        result = _validate_function_signature(
+                            key_path, element_value, allowed_type
+                        )
+                        if not result:
+                            valid_type_found = True
+                            break
+                        continue
+                    except Exception:
+                        continue
 
-                if not temp_errors:
-                    valid_type_found = True
-                    break
-                for error_key, error_code in temp_errors.items():
-                    full_error_key = f"{key_path}.{error_key}"
-                    self.errors[full_error_key] = error_code
-                    nested_errors_found = True
+                # Other types (dict, Literal, Optional, etc.)
+                if isinstance(allowed_type, dict):
+                    if not isinstance(element_value, dict):
+                        continue
+
+                    temp_errors = {}
+                    temp_validator = DataValidator(
+                        element_value,
+                        allowed_type,
+                        temp_errors,
+                    )
+                    temp_validator.validate()
+
+                    if not temp_errors:
+                        valid_type_found = True
+                        break
+
+                    for error_key, error_code in temp_errors.items():
+                        full_error_key = f"{key_path}.{error_key}"
+                        self.errors[full_error_key] = error_code
+                        nested_errors_found = True
+                else:
+                    # Non-dict types (Literal, Optional, etc.)
+                    temp_errors = {}
+                    temp_validator = DataValidator(
+                        {"temp_key": element_value},
+                        {"temp_key": allowed_type},
+                        temp_errors,
+                    )
+                    temp_validator.validate_data_value(
+                        "temp_key", element_value, allowed_type
+                    )
+
+                    if not temp_errors:
+                        valid_type_found = True
+                        break
 
             except Exception:
                 continue

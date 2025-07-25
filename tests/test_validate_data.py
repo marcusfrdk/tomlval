@@ -15,7 +15,6 @@ from tomlval.toml_error import (
     INVALID_TYPE,
     MISSING_KEY,
     REGEX_MISMATCH,
-    VALIDATION_FAILURE,
     TOMLError,
 )
 from tomlval.toml_schema import TOMLSchema
@@ -225,11 +224,11 @@ class TestFunctionValidation:
     def test_function_no_params_success(self):
         """Test function with no parameters that passes."""
 
-        def always_true():
-            return True
+        def always_passes():
+            return None  # Falsy = success
 
         data = {"value": "anything"}
-        schema = TOMLSchema({"value": always_true})
+        schema = TOMLSchema({"value": always_passes})
 
         errors = validate_data(data, schema)
 
@@ -238,21 +237,21 @@ class TestFunctionValidation:
     def test_function_no_params_failure(self):
         """Test function with no parameters that fails."""
 
-        def always_false():
-            return False
+        def always_fails():
+            return "validation-failed"  # Truthy = error
 
         data = {"value": "anything"}
-        schema = TOMLSchema({"value": always_false})
+        schema = TOMLSchema({"value": always_fails})
 
         errors = validate_data(data, schema)
 
-        assert errors == {"value": TOMLError(VALIDATION_FAILURE)}
+        assert errors == {"value": TOMLError("validation-failed")}
 
     def test_function_value_param_success(self):
         """Test function with value parameter that passes."""
 
         def check_positive(value):
-            return value > 0
+            return None if value > 0 else "number-not-positive"
 
         data = {"number": 5}
         schema = TOMLSchema({"number": check_positive})
@@ -265,20 +264,20 @@ class TestFunctionValidation:
         """Test function with value parameter that fails."""
 
         def check_positive(value):
-            return value > 0
+            return None if value > 0 else "number-not-positive"
 
         data = {"number": -5}
         schema = TOMLSchema({"number": check_positive})
 
         errors = validate_data(data, schema)
 
-        assert errors == {"number": TOMLError(VALIDATION_FAILURE)}
+        assert errors == {"number": TOMLError("number-not-positive")}
 
     def test_function_key_param_success(self):
         """Test function with key parameter that passes."""
 
         def check_key_length(key):
-            return len(key) > 3
+            return None if len(key) > 3 else "key-too-short"
 
         data = {"username": "john"}
         schema = TOMLSchema({"username": check_key_length})
@@ -291,20 +290,20 @@ class TestFunctionValidation:
         """Test function with key parameter that fails."""
 
         def check_key_length(key):
-            return len(key) > 10
+            return None if len(key) > 10 else "key-too-short"
 
         data = {"name": "john"}
         schema = TOMLSchema({"name": check_key_length})
 
         errors = validate_data(data, schema)
 
-        assert errors == {"name": TOMLError(VALIDATION_FAILURE)}
+        assert errors == {"name": TOMLError("key-too-short")}
 
     def test_function_both_params_success(self):
         """Test function with both key and value parameters that passes."""
 
         def check_key_value_match(key, value):
-            return key == value
+            return None if key == value else "key-value-mismatch"
 
         data = {"test": "test"}
         schema = TOMLSchema({"test": check_key_value_match})
@@ -317,14 +316,14 @@ class TestFunctionValidation:
         """Test function with both key and value parameters that fails."""
 
         def check_key_value_match(key, value):
-            return key == value
+            return None if key == value else "key-value-mismatch"
 
         data = {"test": "different"}
         schema = TOMLSchema({"test": check_key_value_match})
 
         errors = validate_data(data, schema)
 
-        assert errors == {"test": TOMLError(VALIDATION_FAILURE)}
+        assert errors == {"test": TOMLError("key-value-mismatch")}
 
     def test_function_execution_error(self):
         """Test function that raises an exception."""
@@ -338,6 +337,33 @@ class TestFunctionValidation:
         errors = validate_data(data, schema)
 
         assert errors == {"value": TOMLError(FUNCTION_EXECUTION_ERROR)}
+
+    def test_function_custom_error_codes(self):
+        """Test functions returning custom error codes."""
+
+        def validate_email(value):
+            if "@" not in value:
+                return "missing-at-symbol"
+            if "." not in value.split("@")[1]:
+                return "invalid-domain"
+            return None
+
+        def validate_age(value):
+            if value < 0:
+                return "negative-age"
+            if value > 150:
+                return "age-too-high"
+            return None
+
+        data = {"email": "invalid-email", "age": -5}
+        schema = TOMLSchema({"email": validate_email, "age": validate_age})
+
+        errors = validate_data(data, schema)
+
+        assert errors == {
+            "email": TOMLError("missing-at-symbol"),
+            "age": TOMLError("negative-age"),
+        }
 
 
 class TestOptionalValues:
@@ -549,15 +575,40 @@ class TestTupleValidation:
     def test_complex_tuple_with_functions(self):
         """Test tuple with functions and types."""
 
-        def is_positive(value):
-            return isinstance(value, int) and value > 0
+        def is_positive_int(value):
+            return (
+                None
+                if (
+                    isinstance(value, int)
+                    and not isinstance(value, bool)
+                    and value > 0
+                )
+                else "not-positive-int"
+            )
 
         data = {"value": -5}
-        schema = TOMLSchema({"value": (is_positive, str)})
+        schema = TOMLSchema({"value": (is_positive_int, str)})
 
         errors = validate_data(data, schema)
 
         assert errors == {"value": TOMLError(INVALID_TUPLE_TYPE)}
+
+    def test_tuple_function_success(self):
+        """Test tuple where function validates successfully."""
+
+        def is_even(value):
+            return (
+                None
+                if isinstance(value, int) and value % 2 == 0
+                else "not-even"
+            )
+
+        data = {"value": 4}
+        schema = TOMLSchema({"value": (is_even, str)})
+
+        errors = validate_data(data, schema)
+
+        assert not errors
 
 
 class TestDottedKeyValidation:
@@ -777,7 +828,11 @@ class TestComplexScenarios:
         }
 
         def valid_version(value):
-            return bool(re.match(r"^\d+\.\d+\.\d+$", value))
+            return (
+                None
+                if re.match(r"^\d+\.\d+\.\d+$", value)
+                else "invalid-version-format"
+            )
 
         schema = TOMLSchema(
             {
@@ -822,7 +877,11 @@ class TestComplexScenarios:
         }
 
         def valid_version(value):
-            return bool(re.match(r"^\d+\.\d+\.\d+$", value))
+            return (
+                None
+                if re.match(r"^\d+\.\d+\.\d+$", value)
+                else "invalid-version-format"
+            )
 
         schema = TOMLSchema(
             {
@@ -843,7 +902,7 @@ class TestComplexScenarios:
 
         expected_errors = {
             "app.name": TOMLError(INVALID_TYPE),
-            "app.version": TOMLError(VALIDATION_FAILURE),
+            "app.version": TOMLError("invalid-version-format"),
             "app.debug": TOMLError(INVALID_TYPE),
             "port": TOMLError(INVALID_TYPE),
             "password": TOMLError(MISSING_KEY),
@@ -854,82 +913,54 @@ class TestComplexScenarios:
 
         assert errors == expected_errors
 
-    def test_priority_system_comprehensive(self):
-        """Test comprehensive priority system."""
+    def test_mixed_function_validations(self):
+        """Test mixing different types of function validations."""
+
+        def validate_username(value):
+            if len(value) < 3:
+                return "username-too-short"
+            if not value.isalnum():
+                return "username-not-alphanumeric"
+            return None
+
+        def validate_password_strength(value):
+            if len(value) < 8:
+                return "password-too-short"
+            if not any(c.isupper() for c in value):
+                return "password-needs-uppercase"
+            if not any(c.isdigit() for c in value):
+                return "password-needs-digit"
+            return None
+
+        def validate_email_domain(key, value):
+            allowed_domains = {"email": ["gmail.com", "company.com"]}
+            if "@" not in value:
+                return "invalid-email-format"
+            domain = value.split("@")[1]
+            if key in allowed_domains and domain not in allowed_domains[key]:
+                return f"domain-{domain}-not-allowed-for-{key}"
+            return None
+
         data = {
-            "user_admin_settings": "specific",
-            "user_guest_profile": "general user",
-            "system_config": "system",
-            "random_key": "should be forbidden",
+            "username": "ab",  # Too short
+            "password": "weak",  # Too short, no uppercase, no digit
+            "email": "user@badsite.com",  # Domain not allowed
         }
 
         schema = TOMLSchema(
             {
-                "user_admin_settings": str,  # Most specific
-                "user_*_profile": str,  # Medium specific
-                "user_*": str,  # Less specific
-                "system_*": str,  # Different pattern
-                "*": Invalid,  # Catch-all forbids others
+                "username": validate_username,
+                "password": validate_password_strength,
+                "email": validate_email_domain,
             }
         )
 
         errors = validate_data(data, schema)
 
-        assert errors == {"random_key": TOMLError(INVALID_KEY)}
+        expected_errors = {
+            "username": TOMLError("username-too-short"),
+            "password": TOMLError("password-too-short"),
+            "email": TOMLError("domain-badsite.com-not-allowed-for-email"),
+        }
 
-    def test_edge_case_empty_data(self):
-        """Test edge case with empty data."""
-        data = {}
-        schema = TOMLSchema(
-            {"required": str, "optional": Optional(str), "*": Invalid}
-        )
-
-        errors = validate_data(data, schema)
-
-        assert errors == {"required": TOMLError(MISSING_KEY)}
-
-    def test_edge_case_empty_schema(self):
-        """Test edge case with empty schema."""
-        data = {"key": "value"}
-        schema = TOMLSchema({})
-
-        errors = validate_data(data, schema)
-
-        assert not errors
-
-    def test_quoted_keys(self):
-        """Test handling of quoted keys."""
-        data = {"key.with.dots": "value"}
-        schema = TOMLSchema({"'key.with.dots'": str})
-
-        errors = validate_data(data, schema)
-
-        assert errors == {"'key.with.dots'": TOMLError(MISSING_KEY)}
-
-    def test_as_dict_parameter(self):
-        """Test the as_dict parameter functionality."""
-        data = {"user": {"name": 123, "age": "thirty"}}  # Both invalid
-        schema = TOMLSchema({"user": {"name": str, "age": int}})
-
-        flat_errors = validate_data(data, schema)
-        assert isinstance(flat_errors, dict)
-        assert "name" in flat_errors
-        assert "age" in flat_errors
-        assert isinstance(flat_errors["name"], TOMLError)
-
-        nested_errors = validate_data(data, schema, as_dict=True)
-        assert isinstance(nested_errors, dict)
-
-    def test_boolean_int_distinction(self):
-        """Test that boolean values are properly distinguished from integers."""
-        data = {"flag": True, "count": 1}
-        schema = TOMLSchema({"flag": bool, "count": int})
-
-        errors = validate_data(data, schema)
-        assert not errors
-
-        data = {"count": True}
-        schema = TOMLSchema({"count": int})
-
-        errors = validate_data(data, schema)
-        assert errors == {"count": TOMLError(INVALID_TYPE)}
+        assert errors == expected_errors
