@@ -46,7 +46,7 @@ ignore = ["venv", "__pycache__", ".git", "tests"]
 persistent = true
 
 [tool.pylint.messages_control]
-disable = []
+disable = ["broad-exception-caught", "too-many-return-statements"]
 
 [tool.pylint.format]
 max-line-length = 80

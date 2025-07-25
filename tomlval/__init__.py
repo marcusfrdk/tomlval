@@ -7,6 +7,7 @@ from tomlval.errors import (
 )
 from tomlval.toml_schema import TOMLSchema
 from tomlval.types import Invalid, Optional
+from tomlval.utils.validate_data import validate_data
 
 __all__ = [
     "TOMLSchema",
@@ -15,4 +16,5 @@ __all__ = [
     "TOMLKeyValidationError",
     "TOMLSchemaConflictError",
     "TOMLSchemaValidationError",
+    "validate_data",
 ]
