@@ -1,7 +1,13 @@
 """Literal type for TOML values."""
 
+from typing import Optional
 
-class Literal:
+from tomlval.toml_error import TOMLError
+from tomlval.toml_error_code import TOMLErrorCode
+from tomlval.types.toml_type import TOMLType
+
+
+class Literal(TOMLType):
     """Represents a literal value in a TOML schema."""
 
     def __init__(self, *values: str) -> None:
@@ -22,3 +28,13 @@ class Literal:
 
     def __repr__(self) -> str:
         return str(self)
+
+    def validate(self, value: str) -> Optional[TOMLError]:
+        if isinstance(self.value_type, list):
+            if value not in self.value_type:
+                return TOMLError(TOMLErrorCode.INVALID_LITERAL_VALUE)
+
+        elif value != self.value_type:
+            return TOMLError(TOMLErrorCode.INVALID_LITERAL_VALUE)
+
+        return None

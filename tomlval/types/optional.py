@@ -2,8 +2,10 @@
 
 from typing import Any
 
+from tomlval.types.toml_type import TOMLType
 
-class Optional:
+
+class Optional(TOMLType):
     """Represents an optional value in a TOML schema."""
 
     def __init__(self, value_type: Any) -> None:
