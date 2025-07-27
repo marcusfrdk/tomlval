@@ -1,6 +1,6 @@
 """Invalid type for TOML values."""
 
-from tomlval.types.toml_type import TOMLType
+from tomlval.types._toml_type import TOMLType
 
 
 class InvalidMeta(type):

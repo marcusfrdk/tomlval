@@ -2,7 +2,7 @@
 
 from typing import Union
 
-from tomlval.toml_error_code import TOMLErrorCode
+from tomlval.errors.error_code import ErrorCode
 
 INVALID_TYPE = "invalid-type"
 INVALID_KEY = "invalid-key"
@@ -25,13 +25,21 @@ INVALID_DOMAIN = "invalid-domain"
 class TOMLError:
     """Error returned by the TOML validator."""
 
-    def __init__(self, code: Union[str, TOMLErrorCode]) -> None:
+    def __init__(self, code: Union[str, ErrorCode]) -> None:
         """
         Initialize the TOMLError.
 
         Args:
             code: The error code
         """
+        if isinstance(code, str):
+            code = ErrorCode(code)
+        elif not isinstance(code, ErrorCode):
+            raise ValueError(
+                "The argument for a TOMLError must "
+                "be a string or ErrorCode instance."
+            )
+
         self.code = code
 
     def __eq__(self, other):
@@ -43,7 +51,7 @@ class TOMLError:
         return hash(self.code)
 
     def __str__(self) -> str:
-        if isinstance(self.code, TOMLErrorCode):
+        if isinstance(self.code, ErrorCode):
             return self.code.value
         return self.code
 

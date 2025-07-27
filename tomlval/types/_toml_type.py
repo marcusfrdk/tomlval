@@ -2,7 +2,7 @@
 
 from typing import Any, Optional
 
-from tomlval.toml_error import TOMLError
+from tomlval.types._toml_error import TOMLError
 
 
 class TOMLType:

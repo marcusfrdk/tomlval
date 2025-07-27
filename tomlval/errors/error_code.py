@@ -3,7 +3,7 @@
 from enum import Enum
 
 
-class TOMLErrorCode(Enum):
+class ErrorCode(Enum):
     """Enum for TOML error codes."""
 
     INVALID_TYPE = "invalid-type"
@@ -12,6 +12,7 @@ class TOMLErrorCode(Enum):
     INVALID_DOMAIN = "invalid-domain"
     INVALID_LITERAL_VALUE = "invalid-literal-value"
     INVALID_ARRAY_ELEMENT = "invalid-array-element"
+    INVALID_LENGTH = "invalid-length"
     MISSING_KEY = "missing-key"
     VALIDATION_FAILURE = "validation-failure"
     REGEX_MISMATCH = "regex-mismatch"

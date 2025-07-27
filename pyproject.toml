@@ -11,20 +11,14 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 license = { file = "LICENSE" }
-requires-python = ">=3.10"
+requires-python = ">=3.8"
 readme = "README.md"
-keywords = ["toml", "validator", "validation", "python"]
+keywords = ["toml", "validator", "validation"]
 dependencies = []
 
 [project.optional-dependencies]
 build = ["build", "twine"]
-dev = [
-    "black>=24.10.0",
-    "pytest>=8.3.4",
-    "isort>=5.13.2",
-    "pylint>=3.3.2",
-    "pre-commit>=4.0.1",
-]
+dev = ["black", "pytest", "isort", "pylint", "pre-commit"]
 
 [build-system]
 requires = ["setuptools", "wheel"]
@@ -35,7 +29,7 @@ include = ["tomlval", "tomlval.*"]
 
 [tool.black]
 line-length = 80
-target-version = ["py310", "py311", "py312", "py313"]
+target-version = ["py38", "py39", "py310", "py311", "py312", "py313"]
 
 [tool.isort]
 profile = "black"
